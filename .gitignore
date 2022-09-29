@@ -4,3 +4,4 @@ tao-converter
 .Trash*/
 __pycache__/
 cleanup.sh
+*.plan
