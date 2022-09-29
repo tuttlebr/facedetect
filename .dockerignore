@@ -1,0 +1,6 @@
+facenet_model
+tao-converter
+.ipynb_checkpoints/
+.Trash*/
+__pycache__/
+cleanup.sh

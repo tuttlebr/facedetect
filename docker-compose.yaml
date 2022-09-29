@@ -1,0 +1,100 @@
+services:
+  tlt-converter:
+    image: nvcr.io/nvidia/tensorrt:22.08-py3
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 167108864
+    runtime: "nvidia"
+    environment:
+      - TRT_LIB_PATH=/usr/lib/aarch64-linux-gnu
+      - TRT_INC_PATH=/usr/include/aarch64-linux-gnu
+    entrypoint: ["bash","/tmp/entrypoint.sh"]
+    volumes:
+      - type: bind
+        source: facenet_model/model.etlt
+        target: /tmp/model.etlt
+      - type: bind
+        source: tlt-converter.sh
+        target: /tmp/tlt-converter.sh
+      - type: bind
+        source: tao-converter
+        target: /usr/local/bin/tao-converter
+      - type: bind
+        source: triton-models/facenet/1
+        target: /models/facenet/1
+
+  triton-server:
+    build:
+      args:
+        - FROM_BASE_IMAGE=nvcr.io/nvidia/tritonserver:22.08-py3
+      context: .
+      dockerfile: Dockerfile
+    image: triton:local
+    shm_size: 16gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: "nvidia"
+    ports:
+      - 8000:8000
+      - 8001:8001
+      - 8002:8002
+    entrypoint:
+      [
+        "tritonserver",
+        "--model-repository=/models",
+        "--allow-metrics=true",
+        "--allow-gpu-metrics=true",
+        "--log-verbose=0",
+      ]
+    hostname: triton-server
+    networks:
+      triton-server:
+        ipv4_address: 172.25.0.42
+    volumes:
+      - type: bind
+        source: triton-models
+        target: /models
+
+  jupyter-demo:
+    build:
+      args:
+        - FROM_BASE_IMAGE=nvcr.io/nvidia/pytorch:22.08-py3
+      context: .
+      dockerfile: Dockerfile
+    image: jupyter:local
+    shm_size: 8gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: "nvidia"
+    ports:
+      - 8888:8888
+    entrypoint:
+      [
+        "jupyter",
+        "lab",
+        "--ip=0.0.0.0",
+        "--no-browser",
+        "--allow-root",
+        "--port=8888",
+        "--NotebookApp.token=''",
+        "--NotebookApp.password=''",
+        "--NotebookApp.notebook_dir=/workspace",
+      ]
+    hostname: jupyter-demo
+    networks:
+      triton-server:
+        ipv4_address: 172.25.0.45
+    volumes:
+      - type: bind
+        source: workspace
+        target: /workspace
+
+networks:
+  triton-server:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24

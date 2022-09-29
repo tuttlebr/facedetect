@@ -1,0 +1,57 @@
+name: "facenet"
+platform: "tensorrt_plan"
+default_model_filename: "model.plan"
+max_batch_size: 16
+dynamic_batching {
+  preferred_batch_size: [ 1, 4, 8, 16 ]
+  max_queue_delay_microseconds: 50000
+}
+
+instance_group [
+    {
+      count: 16
+      kind: KIND_GPU
+    }
+  ]
+
+input [
+  {
+    name: "input_1"
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+    dims: [ 3, 416, 736 ]
+  }
+]
+output [
+  {
+    name: "output_bbox/BiasAdd"
+    data_type: TYPE_FP32
+    dims: [ 4, 26, 46 ]
+  },
+  {
+    name: "output_cov/Sigmoid"
+    data_type: TYPE_FP32
+    dims: [ 1, 26, 46 ]
+  }
+]
+
+parameters {
+  key: "model_description"
+  value: {
+      string_value: "The model described in this card detects one or more faces in the given image / video. Compared to the FaceirNet model, this model gives better results on RGB images and smaller faces."
+  }
+}
+
+parameters {
+  key: "model_architecture"
+  value: {
+      string_value: "The model is based on NVIDIA DetectNet_v2 detector with ResNet18 as a feature extractor. This architecture, also known as GridBox object detection, uses bounding-box regression on a uniform grid on the input image. Gridbox system divides an input image into a grid which predicts four normalized bounding-box parameters (xc, yc, w, h) and confidence value per output class. The raw normalized bounding-box and confidence detections needs to be post-processed by a clustering algorithm such as DBSCAN or NMS to produce final bounding-box coordinates and category labels."
+  }
+}
+
+parameters {        
+  key: "license"
+  value: {
+      string_value: "License to use this model is covered by the Model EULA. By downloading the unpruned or pruned version of the model, you accept the terms and conditions of these licenses. https://developer.nvidia.com/deep-learning-models-license-agreement"
+  }
+}

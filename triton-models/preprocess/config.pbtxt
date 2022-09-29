@@ -1,0 +1,50 @@
+name: "preprocess"
+backend: "python"
+default_model_filename: "model.py"
+max_batch_size: 16
+dynamic_batching {
+    preferred_batch_size: [ 1, 4, 8, 16 ]
+    max_queue_delay_microseconds: 50000
+  }
+
+instance_group [
+    {
+      count: 16
+      kind: KIND_CPU
+    }
+  ]
+
+  input [
+    {
+      name: "raw_image_array"
+      data_type: TYPE_UINT8
+      dims: [ -1 ]
+      allow_ragged_batch: true
+    }
+  ]
+ 
+output [
+    {
+      name: "pixel_values", 
+      data_type: TYPE_FP32,
+      dims: [ 3, 416, 736 ]
+    },
+    {
+      name: "true_image_size", 
+      data_type: TYPE_INT64,
+      dims: [ 3 ]
+    }
+]
+
+parameters {
+    key: "model_description"
+    value: {
+        string_value: "Reshapes a full size image. Grayscale Image whose values in RGB channels are the same. 736 X 416 X 3 Channel Ordering of the Input: NCHW, where N = Batch Size, C = number of channels (3), H = Height of images (416), W = Width of the images (736) Input scale: 1/255.0 Mean subtraction: None"
+    }
+}
+parameters {        
+    key: "license"
+    value: {
+        string_value: "Apache 2.0 license: https://www.apache.org/licenses/LICENSE-2.0"
+    }
+}

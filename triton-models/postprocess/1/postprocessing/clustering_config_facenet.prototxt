@@ -1,0 +1,19 @@
+linewidth: 10
+stride: 16
+classwise_clustering_config{
+    key: "face"
+    value: {
+        coverage_threshold: 0.3
+        minimum_bounding_box_height: 4
+        dbscan_config{
+            dbscan_eps: 0.65
+            dbscan_min_samples: 0.05
+            dbscan_confidence_threshold: 2
+        }
+        bbox_color{
+            R: 118
+            G: 185
+            B: 0
+        }
+    }
+}
