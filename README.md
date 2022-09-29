@@ -1,5 +1,18 @@
 # FaceDetect
 
+<p align="left">
+    <img style="left;" src="faces.png" width="800"/>
+</p>
+
+<sub>Model performance on Klingons, Trills, Changelings or Bajorn has not been measured.</sub>
+
+
+<p align="left">
+    <img style="left;" src="https://www.nvidia.com/content/dam/en-zz/Solutions/gtcs22/enterprise-ai-platform/nvidia-diagram-accelerated-computing-egx-overview.svg" alt="nvidia-diagram-accelerated-computing-egx-overview" width="800"/>
+</p>
+
+This repo uses NVIDIA's enterprise containers available on NGC with a valid API_KEY. These containers provide best-in-class development tools and frameworks for the AI practitioner and reliable management and orchestration for the IT professional to ensure performance, high availability, and security. For more information on how to obtain access to these containers, check the [NVIDIA website](https://www.nvidia.com/en-us/data-center/products/ai-enterprise/).
+
 ## FaceDetect Model Card
 
 ### Model Overview
@@ -173,6 +186,7 @@ NVIDIA’s platforms and application frameworks enable developers to build a wid
 - Docker
 - Docker Compose
 - NVIDIA GPUs on host
+- NVIDIA AI Enterprise
 
 ### Install NGC CLI
 

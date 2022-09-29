@@ -16,7 +16,7 @@ services:
         target: /tmp/model.etlt
       - type: bind
         source: tlt-converter.sh
-        target: /tmp/tlt-converter.sh
+        target: /tmp/entrypoint.sh
       - type: bind
         source: tao-converter
         target: /usr/local/bin/tao-converter
