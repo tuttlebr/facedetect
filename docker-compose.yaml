@@ -1,6 +1,6 @@
 services:
   tlt-converter:
-    image: nvcr.io/nvidia/tensorrt:22.08-py3
+    image: nvcr.io/nvaie/tensorrt-2-2:22.07-nvaie-2.2-py3
     shm_size: 8gb
     ulimits:
       memlock: -1
@@ -27,7 +27,7 @@ services:
   triton-server:
     build:
       args:
-        - FROM_BASE_IMAGE=nvcr.io/nvidia/tritonserver:22.08-py3
+        - FROM_BASE_IMAGE=nvcr.io/nvaie/tritonserver-2-2:22.07-nvaie-2.2-py3
       context: .
       dockerfile: Dockerfile
     image: triton:local
@@ -60,7 +60,7 @@ services:
   jupyter-demo:
     build:
       args:
-        - FROM_BASE_IMAGE=nvcr.io/nvidia/pytorch:22.08-py3
+        - FROM_BASE_IMAGE=nvcr.io/nvaie/pytorch-2-2:22.07-nvaie-2.2-py3
       context: .
       dockerfile: Dockerfile
     image: jupyter:local
