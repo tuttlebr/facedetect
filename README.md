@@ -4,7 +4,7 @@
     <img style="left;" src="faces.png" width="800"/>
 </p>
 
-<sub>Model performance on Klingons, Trills, Changelings or Bajorn has not been measured.</sub>
+<sub>Model performance on Klingons, Trills, Changelings, Ferengi or Bajorn has not been measured.</sub>
 
 
 <p align="left">
