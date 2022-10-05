@@ -1,7 +1,21 @@
-
 name: "facenet_ensemble"
 platform: "ensemble"
-max_batch_size: 16
+max_batch_size: 64
+dynamic_batching {
+  preferred_batch_size: [ 1, 16, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+
+
+
+
+
+
+
+
+
+
 
 input [
   {
@@ -28,7 +42,7 @@ output [
   ensemble_scheduling {
     step [
       {
-        model_name: "preprocess"
+        model_name: "facenet_preprocess"
         model_version: -1
         input_map {
           key: "raw_image_array"
@@ -61,7 +75,7 @@ output [
         }
       },
       {
-        model_name: "postprocess"
+        model_name: "facenet_postprocess"
         model_version: -1
         input_map {
           key: "output_bbox/BiasAdd"

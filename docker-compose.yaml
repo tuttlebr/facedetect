@@ -1,19 +1,22 @@
 services:
   tlt-converter:
     image: nvcr.io/nvaie/tensorrt-2-2:22.07-nvaie-2.2-py3
-    shm_size: 8gb
+    shm_size: 16gb
     ulimits:
       memlock: -1
-      stack: 167108864
+      stack: 67108864
     runtime: "nvidia"
     environment:
       - TRT_LIB_PATH=/usr/lib/aarch64-linux-gnu
       - TRT_INC_PATH=/usr/include/aarch64-linux-gnu
-    entrypoint: ["bash","/tmp/entrypoint.sh"]
+    entrypoint: ["bash", "/tmp/entrypoint.sh"]
     volumes:
       - type: bind
         source: facenet_model/model.etlt
-        target: /tmp/model.etlt
+        target: /tmp/facenet_model.etlt
+      - type: bind
+        source: fpenet_model/model.etlt
+        target: /tmp/fpenet_model.etlt
       - type: bind
         source: tlt-converter.sh
         target: /tmp/entrypoint.sh
@@ -21,8 +24,8 @@ services:
         source: tao-converter
         target: /usr/local/bin/tao-converter
       - type: bind
-        source: triton-models/facenet/1
-        target: /models/facenet/1
+        source: triton-models
+        target: /models
 
   triton-server:
     build:
@@ -57,20 +60,16 @@ services:
         source: triton-models
         target: /models
 
-  jupyter-demo:
+  triton-client:
     build:
       args:
         - FROM_BASE_IMAGE=nvcr.io/nvaie/pytorch-2-2:22.07-nvaie-2.2-py3
       context: .
       dockerfile: Dockerfile
     image: jupyter:local
-    shm_size: 8gb
-    ulimits:
-      memlock: -1
-      stack: 67108864
-    runtime: "nvidia"
     ports:
       - 8888:8888
+    # entrypoint: ["python", "/workspace/run.py"]
     entrypoint:
       [
         "jupyter",
@@ -91,6 +90,9 @@ services:
       - type: bind
         source: workspace
         target: /workspace
+      - type: bind
+        source: /mnt/pictures
+        target: /data/photos
 
 networks:
   triton-server:

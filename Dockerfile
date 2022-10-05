@@ -6,5 +6,14 @@ RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
     > /etc/apt/sources.list.d/nodesource.list && \
     apt-get update && \
     apt-get install -y \
+    cmake \
     nodejs
-RUN pip install pillow~=9.0.1 tritonclient[all] scikit-learn~=0.24.2
+
+# RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install --upgrade \
+    pillow~=9.2.0 \
+    tritonclient[all]~=2.25.0 \
+    scikit-learn~=0.24.0 \
+    pillow_heif~=0.7.0 \
+    dlib~=19.24.0 \
+    ipywidgets~=8.0.0

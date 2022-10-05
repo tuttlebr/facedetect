@@ -1,7 +1,10 @@
 facenet_model
+fpenet_model
 tao-converter
 .ipynb_checkpoints/
 .Trash*/
 __pycache__/
 cleanup.sh
 *.plan
+ignore.py
+*.dat

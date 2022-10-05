@@ -1,0 +1,59 @@
+name: "fpenet"
+platform: "tensorrt_plan"
+default_model_filename: "model.plan"
+max_batch_size: 64
+dynamic_batching {
+  preferred_batch_size: [ 1, 16, 64 ]
+  max_queue_delay_microseconds: 50000
+}
+
+instance_group [
+    {
+      count: 4
+      kind: KIND_GPU
+    }
+  ]
+
+input [
+  {
+    name: "input_face_images"
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+  }
+]
+output [
+  {
+    name: "conv_keypoints_m80"
+    data_type: TYPE_FP32
+  },
+  {
+    name: "softargmax"
+    data_type: TYPE_FP32
+  },
+  {
+    name: "softargmax:1"
+    data_type: TYPE_FP32
+  }
+
+]
+
+parameters {
+  key: "model_description"
+  value: {
+      string_value: "The FPENet model described in this card is a facial keypoints estimator network, which aims to predict the (x,y) location of keypoints for a given input face image. FPEnet is generally used in conjuction with a face detector and the output is commonly used for face alignment, head pose estimation, emotion detection, eye blink detection, gaze estimation, among others. This model predicts 68, 80 or 104 keypoints for a given face- Chin: 1-17, Eyebrows: 18-27, Nose: 28-36, Eyes: 37-48, Mouth: 49-61, Inner Lips: 62-68, Pupil: 69-76, Ears: 77-80, additional eye landmarks: 81-104. It can also handle visible or occluded flag for each keypoint."
+  }
+}
+
+parameters {
+  key: "model_architecture"
+  value: {
+      string_value: "This is a classification model with a Recombinator network backbone. Recombinator networks are a family of CNN architectures that are suited for fine grained pixel level predictions (as oppose to image level prediction like classification). The model recombines the layer inputs such that convolutional layers in the finer branches get inputs from both coarse and fine layers."
+  }
+}
+
+parameters {        
+  key: "license"
+  value: {
+      string_value: "License to use this model is covered by the Model EULA. By downloading the unpruned or pruned version of the model, you accept the terms and conditions of these licenses. https://developer.nvidia.com/deep-learning-models-license-agreement"
+  }
+}
