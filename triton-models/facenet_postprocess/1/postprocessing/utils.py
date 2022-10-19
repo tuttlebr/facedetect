@@ -29,7 +29,7 @@ def denormalize_bounding_bboxes(
     scale_h,
     data_format,
     model_shape,
-    true_image_size,
+    input_image_size,
     this_id,
 ):
     """Convert bbox from relative coordinates to absolute coordinates."""
@@ -44,7 +44,7 @@ def denormalize_bounding_bboxes(
     )
 
     for i in range(boxes.shape[0]):
-        h, w, _ = true_image_size[i]
+        h, w, _ = input_image_size[i]
         scales[i, 0, :, :].fill(float(w / model_width))
         scales[i, 1, :, :].fill(float(h / model_height))
         scales[i, 2, :, :].fill(float(w / model_width))

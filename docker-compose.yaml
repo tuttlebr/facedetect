@@ -1,28 +1,35 @@
 services:
-  tlt-converter:
-    image: nvcr.io/nvaie/tensorrt-2-2:22.07-nvaie-2.2-py3
+  tao-converter:
+    build:
+      args:
+        - FROM_BASE_IMAGE=${TAO_CONVERTER_IMAGE}
+        - PROTOBUF_URL=${PROTOBUF_URL}
+        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
+    image: tao-converter
     shm_size: 16gb
     ulimits:
       memlock: -1
       stack: 67108864
-    runtime: "nvidia"
-    environment:
-      - TRT_LIB_PATH=/usr/lib/aarch64-linux-gnu
-      - TRT_INC_PATH=/usr/include/aarch64-linux-gnu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              device_ids: ["0"]
+    env_file:
+      - .env
     entrypoint: ["bash", "/tmp/entrypoint.sh"]
     volumes:
       - type: bind
-        source: facenet_model/model.etlt
-        target: /tmp/facenet_model.etlt
+        source: facenet_model
+        target: /tmp/facenet_model
       - type: bind
-        source: fpenet_model/model.etlt
-        target: /tmp/fpenet_model.etlt
+        source: fpenet_model
+        target: /tmp/fpenet_model
       - type: bind
         source: tlt-converter.sh
         target: /tmp/entrypoint.sh
-      - type: bind
-        source: tao-converter
-        target: /usr/local/bin/tao-converter
       - type: bind
         source: triton-models
         target: /models
@@ -30,15 +37,19 @@ services:
   triton-server:
     build:
       args:
-        - FROM_BASE_IMAGE=nvcr.io/nvaie/tritonserver-2-2:22.07-nvaie-2.2-py3
+        - FROM_BASE_IMAGE=${TRITON_SERVER_IMAGE}
+        - PROTOBUF_URL=${PROTOBUF_URL}
+        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
       context: .
       dockerfile: Dockerfile
-    image: triton:local
+    image: triton-server
     shm_size: 16gb
     ulimits:
       memlock: -1
       stack: 67108864
     runtime: "nvidia"
+    env_file:
+      - .env
     ports:
       - 8000:8000
       - 8001:8001
@@ -54,7 +65,7 @@ services:
     hostname: triton-server
     networks:
       triton-server:
-        ipv4_address: 172.25.0.42
+        ipv4_address: ${TRITON_SERVER_IP}
     volumes:
       - type: bind
         source: triton-models
@@ -63,40 +74,75 @@ services:
   triton-client:
     build:
       args:
-        - FROM_BASE_IMAGE=nvcr.io/nvaie/pytorch-2-2:22.07-nvaie-2.2-py3
+        - FROM_BASE_IMAGE=${TRITON_CLIENT_IMAGE}
+        - PROTOBUF_URL=${PROTOBUF_URL}
+        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
       context: .
       dockerfile: Dockerfile
-    image: jupyter:local
+    image: triton-client
+    env_file:
+      - .env
     ports:
       - 8888:8888
-    # entrypoint: ["python", "/workspace/run.py"]
     entrypoint:
       [
-        "jupyter",
-        "lab",
+        "jupyter-lab",
         "--ip=0.0.0.0",
         "--no-browser",
         "--allow-root",
         "--port=8888",
-        "--NotebookApp.token=''",
-        "--NotebookApp.password=''",
-        "--NotebookApp.notebook_dir=/workspace",
+        "--ServerApp.token=''",
+        "--ServerApp.password=''",
       ]
-    hostname: jupyter-demo
+    hostname: triton-client
     networks:
       triton-server:
-        ipv4_address: 172.25.0.45
+        ipv4_address: ${TRITON_CLIENT_IP}
     volumes:
       - type: bind
         source: workspace
         target: /workspace
       - type: bind
-        source: /mnt/pictures
+        source: photo_data
         target: /data/photos
+
+  redis-db:
+    image: ${REDIS_DB_IMAGE}
+    env_file:
+      - .env
+    ports:
+      - 6379:6379
+    hostname: redis-db
+    networks:
+      triton-server:
+        ipv4_address: ${REDIS_DB_IP}
+    volumes:
+      - type: bind
+        source: redis-db/dump.rdb
+        target: /data/dump.rdb
+      - type: bind
+        source: redis-db/redis.conf
+        target: /usr/local/etc/redis/redis.conf
+    command: ["/usr/local/etc/redis/redis.conf"]
+
+  redis-insight:
+    image: ${REDIS_INSIGHT_IMAGE}
+    env_file:
+      - .env
+    ports:
+      - 8003:8001
+    hostname: redis-insight
+    networks:
+      triton-server:
+        ipv4_address: ${REDIS_INSIGHT_IP}
+    volumes:
+      - type: bind
+        source: redis-db/redis.conf
+        target: /usr/local/etc/redis/redis.conf
 
 networks:
   triton-server:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.25.0.0/24
+        - subnet: ${SUBNET}

@@ -1,19 +1,19 @@
 name: "facenet_postprocess"
 backend: "python"
 default_model_filename: "model.py"
-
-max_batch_size: 64
+max_batch_size: 16
 dynamic_batching {
-  preferred_batch_size: [ 1, 16, 64 ]
+  preferred_batch_size: [ 1, 8, 16 ]
   max_queue_delay_microseconds: 50000
 }
 
 instance_group [
-    {
-      count: 4
-      kind: KIND_CPU
-    }
-  ]
+  {
+    count: 16
+    kind: KIND_CPU
+  }
+]
+
 
 
   
@@ -24,14 +24,14 @@ input [
       dims: [ 4, 26, 46 ]
       },
     {
-        name: "true_image_size"
-        data_type: TYPE_INT64
-        dims: [ 3 ]
-    },
-    {
       name: "output_cov/Sigmoid"
       data_type: TYPE_FP32
       dims: [ 1, 26, 46 ]
+    },
+    {
+        name: "true_image_size"
+        data_type: TYPE_INT64
+        dims: [ 3 ]
     }
 ]
 

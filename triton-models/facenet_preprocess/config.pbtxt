@@ -1,34 +1,39 @@
 name: "facenet_preprocess"
 backend: "python"
 default_model_filename: "model.py"
-max_batch_size: 64
+max_batch_size: 16
 dynamic_batching {
-  preferred_batch_size: [ 1, 16, 64 ]
+  preferred_batch_size: [ 1, 8, 16 ]
   max_queue_delay_microseconds: 50000
 }
 
 instance_group [
-    {
-      count: 4
-      kind: KIND_CPU
-    }
-  ]
+  {
+    count: 16
+    kind: KIND_CPU
+  }
+]
 
 
 
   
-  input [
+input [
     {
-      name: "raw_image_array"
-      data_type: TYPE_UINT8
-      dims: [ -1 ]
-      allow_ragged_batch: true
+      name: "input_image_data", 
+      data_type: TYPE_FP32
+      format: FORMAT_NCHW
+      dims: [ 3, 416, 736 ]
+    },
+    {
+      name: "input_image_size", 
+      data_type: TYPE_INT64,
+      dims: [ 3 ]
     }
-  ]
+]
  
 output [
     {
-      name: "pixel_values", 
+      name: "input_1", 
       data_type: TYPE_FP32,
       dims: [ 3, 416, 736 ]
     },

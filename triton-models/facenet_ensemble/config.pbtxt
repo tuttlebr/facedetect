@@ -1,10 +1,10 @@
 name: "facenet_ensemble"
 platform: "ensemble"
-max_batch_size: 64
-dynamic_batching {
-  preferred_batch_size: [ 1, 16, 64 ]
-  max_queue_delay_microseconds: 50000
-}
+max_batch_size: 16
+
+
+
+
 
 
 
@@ -19,10 +19,15 @@ dynamic_batching {
 
 input [
   {
-    name: "raw_image_array"
-    data_type: TYPE_UINT8
-    dims: [ -1 ]
-    allow_ragged_batch: true
+    name: "input_image_data", 
+    data_type: TYPE_FP32
+    format: FORMAT_NCHW
+    dims: [ 3, 416, 736 ]
+  },
+  {
+    name: "input_image_size", 
+    data_type: TYPE_INT64,
+    dims: [ 3 ]
   }
 ]
 
@@ -43,26 +48,30 @@ output [
     step [
       {
         model_name: "facenet_preprocess"
-        model_version: -1
+        model_version: 1
         input_map {
-          key: "raw_image_array"
-          value: "raw_image_array"
+          key: "input_image_data"
+          value: "input_image_data"
+        }
+        input_map {
+          key: "input_image_size"
+          value: "input_image_size"
         }
         output_map {
-          key: "pixel_values"
-          value: "detection_preprocessing_output_pixel_values"
+          key: "input_1"
+          value: "input_1"
         }
         output_map {
           key: "true_image_size"
-          value: "detection_preprocessing_output_true_image_size"
+          value: "true_image_size"
         }
       },
       {
         model_name: "facenet"
-        model_version: -1
+        model_version: 1
         input_map {
           key: "input_1"
-          value: "detection_preprocessing_output_pixel_values"
+          value: "input_1"
         }
 
         output_map {
@@ -76,7 +85,7 @@ output [
       },
       {
         model_name: "facenet_postprocess"
-        model_version: -1
+        model_version: 1
         input_map {
           key: "output_bbox/BiasAdd"
           value: "output_bbox/BiasAdd"
@@ -87,7 +96,7 @@ output [
         }
         input_map {
           key: "true_image_size"
-          value: "detection_preprocessing_output_true_image_size"
+          value: "true_image_size"
         }
 
         output_map {

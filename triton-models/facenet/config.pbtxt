@@ -1,18 +1,21 @@
 name: "facenet"
 platform: "tensorrt_plan"
 default_model_filename: "model.plan"
-max_batch_size: 64
+max_batch_size: 16
 dynamic_batching {
-  preferred_batch_size: [ 1, 16, 64 ]
+  preferred_batch_size: [ 1, 8, 16 ]
   max_queue_delay_microseconds: 50000
 }
 
 instance_group [
-    {
-      count: 4
-      kind: KIND_GPU
-    }
-  ]
+  {
+    count: 16
+    kind: KIND_GPU
+  }
+]
+
+
+
 
 input [
   {

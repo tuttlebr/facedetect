@@ -44,33 +44,22 @@ class TritonPythonModel:
             self.output0_config["data_type"]
         )
 
-        self.predictor_path = (
-            "{}/dlib/shape_predictor_68_face_landmarks_GTX.dat".format(
-                os.path.realpath(os.path.dirname(__file__))
-            )
-        )
-
         self.face_rec_model_path = (
             "{}/dlib/dlib_face_recognition_resnet_model_v1.dat".format(
                 os.path.realpath(os.path.dirname(__file__))
             )
         )
 
-        self.detector = dlib.get_frontal_face_detector()
-        self.sp = dlib.shape_predictor(self.predictor_path)
         self.facerec = dlib.face_recognition_model_v1(self.face_rec_model_path)
 
-    def get_descriptors(self, img, left, top, right, bottom):
-        sample_img = np.array(Image.open(io.BytesIO(img.tobytes())).convert("RGB"))
+    def get_descriptors(self, face_clip):
         try:
-            d = dlib.rectangle(int(left), int(top), int(right), int(bottom))
-            shape = self.sp(sample_img, d)
             descriptor = np.array(
-                self.facerec.compute_face_descriptor(sample_img, shape)
+                self.facerec.compute_face_descriptor(face_clip.squeeze())
             )
         except Exception as e:
+            logger.info("There was an exception: {}".format(e))
             descriptor = np.zeros((128,))
-            logger.info(e)
 
         return descriptor
 
@@ -99,18 +88,13 @@ class TritonPythonModel:
 
         for request in requests:
             image_tensor = pb_utils.get_input_tensor_by_name(
-                request, "raw_image_array"
+                request, "face_clip"
             ).as_numpy()
-            left, top, right, bottom = (
-                pb_utils.get_input_tensor_by_name(request, "bboxes")
-                .as_numpy()
-                .squeeze()
-            )
 
-            descriptors = self.get_descriptors(image_tensor, left, top, right, bottom)
+            dlib_descriptors = self.get_descriptors(image_tensor)
 
             out_tensor_0 = pb_utils.Tensor(
-                "face_descriptor", np.array(descriptors).astype(output0_dtype)
+                "face_descriptor", np.array(dlib_descriptors).astype(output0_dtype)
             )
 
             inference_response = pb_utils.InferenceResponse(

@@ -6,8 +6,11 @@ import postprocessing.postprocessor_config_pb2 as postprocessor_config_pb2
 import triton_python_backend_utils as pb_utils
 from google.protobuf.text_format import Merge as merge_text_proto
 from postprocessing.postprocessor import Postprocessor
-from postprocessing.utils import (denormalize_bounding_bboxes, iou_vectorized,
-                                  thresholded_indices)
+from postprocessing.utils import (
+    denormalize_bounding_bboxes,
+    iou_vectorized,
+    thresholded_indices,
+)
 from sklearn.cluster import DBSCAN as dbscan
 
 logger = logging.getLogger(__name__)
@@ -71,6 +74,7 @@ class DetectNetPostprocessor(Postprocessor):
                         class_name, classwise_clustering_config.keys()
                     )
                 )
+
             self.dbscan_elements[class_name] = dbscan(
                 eps=classwise_clustering_config[class_name].dbscan_config.dbscan_eps,
                 min_samples=classwise_clustering_config[
@@ -83,16 +87,6 @@ class DetectNetPostprocessor(Postprocessor):
             self.box_color[class_name] = classwise_clustering_config[
                 class_name
             ].bbox_color
-
-    def rescale_bbox(self, bbox, true_image_size):
-        h, w, c = true_image_size
-        _, h_scale, w_scale = np.true_divide(
-            np.array((c, h, w)), np.array(self.target_shape)
-        )
-
-        return np.array(
-            (w_scale * bbox[0], h_scale * bbox[1], w_scale * bbox[2], h_scale * bbox[3])
-        )
 
     def apply(self, results, this_id):
         """Apply the post processing to the outputs tensors.
@@ -111,6 +105,7 @@ class DetectNetPostprocessor(Postprocessor):
         for output_name in self.output_names:
             request_tensor = pb_utils.get_input_tensor_by_name(results, output_name)
             output_array[output_name] = request_tensor.as_numpy().transpose(0, 1, 3, 2)
+
         request_tensor = pb_utils.get_input_tensor_by_name(results, "true_image_size")
         output_array["true_image_size"] = request_tensor.as_numpy()
 
@@ -170,9 +165,6 @@ class DetectNetPostprocessor(Postprocessor):
                     w_max = np.max(w)
                     w_min = np.min(w)
                     b = classwise_bboxes[labeling == label]
-                    # mean_bbox = self.rescale_bbox(
-                    #     np.sum((b.T*w_norm).T, axis=0), output_array["true_image_size"][image_idx])
-
                     mean_bbox = np.sum((b.T * w_norm).T, axis=0)
 
                     # Compute coefficient of variation of the box coords
@@ -183,6 +175,7 @@ class DetectNetPostprocessor(Postprocessor):
                         > cw_config.dbscan_config.dbscan_confidence_threshold
                         and mean_box_h > cw_config.minimum_bounding_box_height
                     )
+
                     if valid_box:
                         batchwise_proba.append(aggregated_w)
                         clustered_boxes.append(mean_bbox)

@@ -1,35 +1,30 @@
 name: "dlib_face_descriptor"
 backend: "python"
 default_model_filename: "model.py"
-max_batch_size: 64
+max_batch_size: 16
 dynamic_batching {
-  preferred_batch_size: [ 1, 16, 64 ]
+  preferred_batch_size: [ 1, 8, 16 ]
   max_queue_delay_microseconds: 50000
 }
 
 instance_group [
-    {
-      count: 4
+  {
+      count: 8
       kind: KIND_GPU
-    }
-  ]
+      gpus: [ 0, 1 ]
+  }
+]
 
 
 
 
 input [
 {
-    name: "raw_image_array"
+    name: "face_clip"
     data_type: TYPE_UINT8
-    dims: [ -1 ]
-    allow_ragged_batch: true
-},
-{
-    name: "bboxes"
-    data_type: TYPE_FP32
-    dims: [ 4 ]
-    allow_ragged_batch: true
-    }
+    format: FORMAT_NHWC
+    dims: [ 150, 150, 3 ]
+}
 ]
 
 output [
@@ -44,7 +39,7 @@ output [
 parameters {
   key: "model_description"
   value: {
-      string_value: "Given bounding boxes, calculate a 128D facial descriptor. Helpful as a feature extractor. Citation: C. Sagonas, E. Antonakos, G, Tzimiropoulos, S. Zafeiriou, M. Pantic. 300 faces In-the-wild challenge: Database and results. Image and Vision Computing (IMAVIS), Special Issue on Facial Landmark Localisation 'In-The-Wild'. 2016. All models downloaded from https://github.com/davisking/dlib-models"
+      string_value: "Given a face clip, calculate a 128D facial descriptor. Helpful as a feature extractor. Citation: C. Sagonas, E. Antonakos, G, Tzimiropoulos, S. Zafeiriou, M. Pantic. 300 faces In-the-wild challenge: Database and results. Image and Vision Computing (IMAVIS), Special Issue on Facial Landmark Localisation 'In-The-Wild'. 2016. All models downloaded from https://github.com/davisking/dlib-models"
   }
 }
 

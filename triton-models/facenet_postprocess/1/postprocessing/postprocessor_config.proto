@@ -1,0 +1,37 @@
+// Copyright (c) 2017-2019, NVIDIA CORPORATION.  All rights reserved.
+
+/**
+* postprocessing_config.proto: Protocol buffer definition for configuring the post-processing
+* block of the DetectNet-v2 model.
+*/
+
+syntax = "proto3";
+
+message DBSCANConfig{
+    // DBSCAN parameters
+    float dbscan_eps = 1;
+    int32 dbscan_min_samples = 2;
+    int32 neighborhood_size = 3;
+    float dbscan_confidence_threshold = 4;
+}
+
+message ClusteringConfig {
+    // Grid cells with coverage lower than this threshold will be ignored
+    float coverage_threshold = 1;
+    int32 minimum_bounding_box_height = 2;
+    DBSCANConfig dbscan_config = 3;
+    message BboxColor {
+        int32 R = 1;
+        int32 G = 2;
+        int32 B = 3;
+    }
+    BboxColor bbox_color = 4;
+}
+
+// Create a dictionary of post processing config.
+message PostprocessingConfig {
+    // Post processing config.
+    map <string, ClusteringConfig> classwise_clustering_config = 1;
+    int32 linewidth = 2;
+    int32 stride = 3;
+}

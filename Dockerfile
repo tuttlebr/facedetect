@@ -1,19 +1,30 @@
 ARG FROM_BASE_IMAGE
 FROM ${FROM_BASE_IMAGE}
-ENV DEBIAN_FRONTEND=noninteractive
-RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add - && \
-    echo 'deb https://deb.nodesource.com/node_18.x focal main' \
-    > /etc/apt/sources.list.d/nodesource.list && \
-    apt-get update && \
-    apt-get install -y \
-    cmake \
-    nodejs
 
-# RUN python3 -m pip install --upgrade pip
-RUN python3 -m pip install --upgrade \
-    pillow~=9.2.0 \
-    tritonclient[all]~=2.25.0 \
-    scikit-learn~=0.24.0 \
-    pillow_heif~=0.7.0 \
-    dlib~=19.24.0 \
-    ipywidgets~=8.0.0
+# Don't prompt on build.
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Apt update to download packages required to download tao-toolkit.
+RUN apt-get update \
+    && apt-get install -y \
+    cmake \
+    libssl-dev \
+    unzip
+
+# Copy TAO Toolkit converter
+ARG TAO_BINARY_PATH
+COPY ${TAO_BINARY_PATH} /usr/local/bin/
+RUN chmod +x /usr/local/bin/tao-converter
+
+# Install protoc as it should bind to whatever version of protobuf is used.
+ARG PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v21.6/protoc-21.6-linux-x86_64.zip
+RUN wget ${PROTOBUF_URL} -O proto.zip \
+    && unzip proto.zip \
+    && chmod +x bin/protoc \
+    && mv bin/protoc /usr/local/bin
+
+
+# Upgrade pip to help build DLIB et al...
+COPY requirements.txt .
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install -r requirements.txt

@@ -8,3 +8,5 @@ cleanup.sh
 *.plan
 ignore.py
 *.dat
+*.rdb
+photo_data

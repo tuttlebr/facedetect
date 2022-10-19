@@ -37,7 +37,7 @@ class TritonPythonModel:
         self.model_config = json.loads(args["model_config"])
 
         self.output0_config = pb_utils.get_output_config_by_name(
-            self.model_config, "pixel_values"
+            self.model_config, "input_1"
         )
         self.output0_dtype = pb_utils.triton_string_to_numpy(
             self.output0_config["data_type"]
@@ -49,21 +49,6 @@ class TritonPythonModel:
         self.output1_dtype = pb_utils.triton_string_to_numpy(
             self.output1_config["data_type"]
         )
-
-    def preprocess(self, img):
-
-        img = img.as_numpy()
-        sample_img = Image.open(io.BytesIO(img.tobytes())).convert("RGB")
-        true_image_size = np.array(sample_img).shape
-        resized_img = sample_img.resize((736, 416), Image.ANTIALIAS)
-        nchw = np.transpose(np.array(resized_img), (2, 0, 1))
-        norm = nchw * (1 / 255.0)
-        final = np.expand_dims(norm, axis=0).astype(self.output0_dtype)
-        true_image_size = np.expand_dims(
-            np.array(np.array(sample_img).shape), axis=0
-        ).astype(self.output1_dtype)
-
-        return final, true_image_size
 
     def execute(self, requests):
         """`execute` MUST be implemented in every Python model. `execute`
@@ -85,22 +70,19 @@ class TritonPythonModel:
           be the same as `requests`
         """
 
-        output0_dtype = self.output0_dtype
-        output1_dtype = self.output1_dtype
-
         responses = []
 
         for request in requests:
-            in_0 = pb_utils.get_input_tensor_by_name(request, "raw_image_array")
+            in_0 = pb_utils.get_input_tensor_by_name(
+                request, "input_image_data"
+            ).as_numpy()
 
-            pixel_values, true_image_size = self.preprocess(in_0)
+            in_1 = pb_utils.get_input_tensor_by_name(
+                request, "input_image_size"
+            ).as_numpy()
 
-            out_tensor_0 = pb_utils.Tensor(
-                "pixel_values", pixel_values.astype(output0_dtype)
-            )
-            out_tensor_1 = pb_utils.Tensor(
-                "true_image_size", true_image_size.astype(output1_dtype)
-            )
+            out_tensor_0 = pb_utils.Tensor("input_1", in_0)
+            out_tensor_1 = pb_utils.Tensor("true_image_size", in_1)
 
             inference_response = pb_utils.InferenceResponse(
                 output_tensors=[out_tensor_0, out_tensor_1]
