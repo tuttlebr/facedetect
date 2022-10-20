@@ -8,7 +8,7 @@ from functools import partial, singledispatch
 from itertools import islice
 from multiprocessing import Pool
 from timeit import default_timer
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import tritonclient.grpc as grpcclient
@@ -51,6 +51,8 @@ class Bbox(JsonModel):
 class Face(JsonModel):
     bbox: Bbox
     probability: int
+    label: Optional[int] = None
+    descriptor: Optional[str] = None
 
 
 class Model(JsonModel):
@@ -90,7 +92,7 @@ def render_image(
         scale = output_size / w
         scale_w = int(w * scale)
         scale_h = int(h * scale)
-        return image.resize((scale_w, scale_h))
+        return image.resize((scale_w, scale_h), Image.Resampling.LANCZOS)
     else:
         return image
 
@@ -261,7 +263,7 @@ def submit_to_facedetect(
 
 def get_face_clip(img, image_wise_bboxes):
     image_wise_bboxes = np.array([float(i) for i in image_wise_bboxes])
-    image = img.crop((image_wise_bboxes)).resize((80, 80))
+    image = img.crop((image_wise_bboxes)).resize((80, 80), Image.Resampling.LANCZOS)
     fpenet_image = np.array(image, dtype="float32").reshape((1, 1, 80, 80))
 
     return fpenet_image
@@ -325,9 +327,13 @@ def submit_to_dlib(json_items, input_name, output_names, request_id="", timeit=F
     for face in json_items["faces"]:
         inputs = []
         outputs = []
+        try:
+            del face["bbox"]["pk"]
+        except:
+            continue
         image_wise_bboxes = tuple(face["bbox"].values())
         img_crop = image.crop((image_wise_bboxes))
-        img_resize = img_crop.resize((150, 150))
+        img_resize = img_crop.resize((150, 150), Image.Resampling.LANCZOS)
         face_clip = np.expand_dims(np.array(img_resize), axis=0)
 
         inputs.append(grpcclient.InferInput("face_clip", face_clip.shape, "UINT8"))

@@ -50,13 +50,29 @@ class TritonPythonModel:
             )
         )
 
+        self.predictor_path = (
+            "{}/dlib/shape_predictor_5_face_landmarks.dat".format(
+                os.path.realpath(os.path.dirname(__file__))
+            )
+        )
+
         self.facerec = dlib.face_recognition_model_v1(self.face_rec_model_path)
+        self.sp = dlib.shape_predictor(self.predictor_path)
+        self.detector = dlib.get_frontal_face_detector()
 
     def get_descriptors(self, face_clip):
         try:
-            descriptor = np.array(
-                self.facerec.compute_face_descriptor(face_clip.squeeze())
-            )
+            img = face_clip.squeeze()
+            d = self.detector(img, 1)
+            if len(d) != 0:
+                shape = self.sp(img, d)
+                descriptor = np.array(
+                    self.facerec.compute_face_descriptor(img, shape)
+                )
+            else:
+                descriptor = np.array(
+                    self.facerec.compute_face_descriptor(img)
+                )
         except Exception as e:
             logger.info("There was an exception: {}".format(e))
             descriptor = np.zeros((128,))
@@ -94,7 +110,8 @@ class TritonPythonModel:
             dlib_descriptors = self.get_descriptors(image_tensor)
 
             out_tensor_0 = pb_utils.Tensor(
-                "face_descriptor", np.array(dlib_descriptors).astype(output0_dtype)
+                "face_descriptor", np.array(
+                    dlib_descriptors).astype(output0_dtype)
             )
 
             inference_response = pb_utils.InferenceResponse(

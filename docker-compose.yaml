@@ -16,7 +16,7 @@ services:
           devices:
             - driver: nvidia
               capabilities: ["gpu"]
-              device_ids: ["0"]
+              device_ids: ["1"]
     env_file:
       - .env
     entrypoint: ["bash", "/tmp/entrypoint.sh"]
@@ -47,7 +47,13 @@ services:
     ulimits:
       memlock: -1
       stack: 67108864
-    runtime: "nvidia"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              device_ids: ["1"]
     env_file:
       - .env
     ports:
@@ -80,6 +86,17 @@ services:
       context: .
       dockerfile: Dockerfile
     image: triton-client
+    shm_size: 16gb
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
+              device_ids: ["0"]
     env_file:
       - .env
     ports:
@@ -118,12 +135,21 @@ services:
         ipv4_address: ${REDIS_DB_IP}
     volumes:
       - type: bind
-        source: redis-db/dump.rdb
-        target: /data/dump.rdb
+        source: redis-db
+        target: /data
+      - type: bind
+        source: redis-db/rejson.so
+        target: /usr/lib/redis/modules/rejson.so
+      - type: bind
+        source: redis-db/redisearch.so
+        target: /usr/lib/redis/modules/redisearch.so
+      - type: bind
+        source: redis-db/redisai.so
+        target: /usr/lib/redis/modules/redisai.so
       - type: bind
         source: redis-db/redis.conf
         target: /usr/local/etc/redis/redis.conf
-    command: ["/usr/local/etc/redis/redis.conf"]
+    entrypoint: ["redis-server", "/usr/local/etc/redis/redis.conf"]
 
   redis-insight:
     image: ${REDIS_INSIGHT_IMAGE}
@@ -136,6 +162,15 @@ services:
       triton-server:
         ipv4_address: ${REDIS_INSIGHT_IP}
     volumes:
+      - type: bind
+        source: redis-db/rejson.so
+        target: /usr/lib/redis/modules/rejson.so
+      - type: bind
+        source: redis-db/redisearch.so
+        target: /usr/lib/redis/modules/redisearch.so
+      - type: bind
+        source: redis-db/redisai.so
+        target: /usr/lib/redis/modules/redisai.so
       - type: bind
         source: redis-db/redis.conf
         target: /usr/local/etc/redis/redis.conf
