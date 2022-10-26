@@ -39,9 +39,12 @@ def denormalize_bounding_bboxes(
         _, model_height, model_width = model_shape
     else:
         model_height, model_width, _ = model_shape
-    scales = np.zeros((boxes.shape[0], 4, boxes.shape[2], boxes.shape[3])).astype(
-        np.float32
-    )
+    scales = np.zeros(
+        (boxes.shape[0],
+         4,
+         boxes.shape[2],
+         boxes.shape[3])).astype(
+        np.float32)
 
     for i in range(boxes.shape[0]):
         h, w, _ = input_image_size[i]

@@ -6,11 +6,8 @@ import postprocessing.postprocessor_config_pb2 as postprocessor_config_pb2
 import triton_python_backend_utils as pb_utils
 from google.protobuf.text_format import Merge as merge_text_proto
 from postprocessing.postprocessor import Postprocessor
-from postprocessing.utils import (
-    denormalize_bounding_bboxes,
-    iou_vectorized,
-    thresholded_indices,
-)
+from postprocessing.utils import (denormalize_bounding_bboxes, iou_vectorized,
+                                  thresholded_indices)
 from sklearn.cluster import DBSCAN as dbscan
 
 logger = logging.getLogger(__name__)
@@ -33,7 +30,12 @@ def load_clustering_config(config):
 class DetectNetPostprocessor(Postprocessor):
     """Post processor for Triton outputs from a DetectNet_v2 client."""
 
-    def __init__(self, data_format, classes, postprocessing_config, target_shape):
+    def __init__(
+            self,
+            data_format,
+            classes,
+            postprocessing_config,
+            target_shape):
         """Initialize a post processor class for a classification model.
 
         Args:
@@ -58,7 +60,8 @@ class DetectNetPostprocessor(Postprocessor):
         self.target_shape = target_shape
         self.stride = self.pproc_config.stride
         super().__init__(data_format)
-        # Format the dbscan elements into classwise configurations for rendering.
+        # Format the dbscan elements into classwise configurations for
+        # rendering.
         self.configure()
 
     def configure(self):
@@ -103,10 +106,13 @@ class DetectNetPostprocessor(Postprocessor):
         output_array = {}
         this_id = int(this_id)
         for output_name in self.output_names:
-            request_tensor = pb_utils.get_input_tensor_by_name(results, output_name)
-            output_array[output_name] = request_tensor.as_numpy().transpose(0, 1, 3, 2)
+            request_tensor = pb_utils.get_input_tensor_by_name(
+                results, output_name)
+            output_array[output_name] = request_tensor.as_numpy(
+            ).transpose(0, 1, 3, 2)
 
-        request_tensor = pb_utils.get_input_tensor_by_name(results, "true_image_size")
+        request_tensor = pb_utils.get_input_tensor_by_name(
+            results, "true_image_size")
         output_array["true_image_size"] = request_tensor.as_numpy()
 
         assert (
@@ -148,14 +154,14 @@ class DetectNetPostprocessor(Postprocessor):
                 classwise_covs = classwise_covs[indices[class_idx]]
                 if classwise_covs.size == 0:
                     continue
-                classwise_bboxes = bboxes[4 * class_idx : 4 * class_idx + 4, :, :]
+                classwise_bboxes = bboxes[4 *
+                                          class_idx: 4 * class_idx + 4, :, :]
                 classwise_bboxes = classwise_bboxes.reshape(
                     classwise_bboxes.shape[:1] + (-1,)
                 ).T[indices[class_idx]]
                 pairwise_dist = 1.0 * (1.0 - iou_vectorized(classwise_bboxes))
                 labeling = self.dbscan_elements[self.classes[class_idx]].fit_predict(
-                    X=pairwise_dist, sample_weight=classwise_covs
-                )
+                    X=pairwise_dist, sample_weight=classwise_covs)
                 labels = np.unique(labeling[labeling >= 0])
                 for label in labels:
                     w = classwise_covs[labeling == label]

@@ -9,7 +9,13 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 
-def _preprocess_numpy_input(x, data_format, mode, color_mode, img_mean, **kwargs):
+def _preprocess_numpy_input(
+        x,
+        data_format,
+        mode,
+        color_mode,
+        img_mean,
+        **kwargs):
     """Preprocesses a Numpy array encoding a batch of images.
 
     # Arguments
@@ -51,7 +57,8 @@ def _preprocess_numpy_input(x, data_format, mode, color_mode, img_mean, **kwargs
             mean = [0.449]
             std = [0.224]
         else:
-            raise NotImplementedError("Invalid color mode: {}".format(color_mode))
+            raise NotImplementedError(
+                "Invalid color mode: {}".format(color_mode))
     else:
         if color_mode == "rgb":
             if data_format == "channels_first":
@@ -103,8 +110,12 @@ def _preprocess_numpy_input(x, data_format, mode, color_mode, img_mean, **kwargs
 
 
 def preprocess_input(
-    x, data_format=None, mode="caffe", color_mode="rgb", img_mean=None, **kwargs
-):
+        x,
+        data_format=None,
+        mode="caffe",
+        color_mode="rgb",
+        img_mean=None,
+        **kwargs):
     """Preprocesses a tensor or Numpy array encoding a batch of images.
 
     # Arguments

@@ -1,38 +1,38 @@
 services:
-  tao-converter:
-    build:
-      args:
-        - FROM_BASE_IMAGE=${TAO_CONVERTER_IMAGE}
-        - PROTOBUF_URL=${PROTOBUF_URL}
-        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
-    image: tao-converter
-    shm_size: 16gb
-    ulimits:
-      memlock: -1
-      stack: 67108864
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: ["gpu"]
-              device_ids: ["1"]
-    env_file:
-      - .env
-    entrypoint: ["bash", "/tmp/entrypoint.sh"]
-    volumes:
-      - type: bind
-        source: facenet_model
-        target: /tmp/facenet_model
-      - type: bind
-        source: fpenet_model
-        target: /tmp/fpenet_model
-      - type: bind
-        source: tlt-converter.sh
-        target: /tmp/entrypoint.sh
-      - type: bind
-        source: triton-models
-        target: /models
+  # tao-converter:
+  #   build:
+  #     args:
+  #       - FROM_BASE_IMAGE=${TAO_CONVERTER_IMAGE}
+  #       - PROTOBUF_URL=${PROTOBUF_URL}
+  #       - TAO_BINARY_PATH=${TAO_BINARY_PATH}
+  #   image: tao-converter
+  #   shm_size: 16gb
+  #   ulimits:
+  #     memlock: -1
+  #     stack: 67108864
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           capabilities: ["gpu"]
+    #           device_ids: ["0:0"]
+  #   env_file:
+  #     - .env
+  #   entrypoint: ["bash", "/tmp/entrypoint.sh"]
+  #   volumes:
+  #     - type: bind
+  #       source: facenet_model
+  #       target: /tmp/facenet_model
+  #     - type: bind
+  #       source: fpenet_model
+  #       target: /tmp/fpenet_model
+  #     - type: bind
+  #       source: tlt-converter.sh
+  #       target: /tmp/entrypoint.sh
+  #     - type: bind
+  #       source: triton-models
+  #       target: /models
 
   triton-server:
     build:
@@ -53,7 +53,7 @@ services:
           devices:
             - driver: nvidia
               capabilities: ["gpu"]
-              device_ids: ["1"]
+              device_ids: ["0:0,1:0"]
     env_file:
       - .env
     ports:
@@ -90,13 +90,13 @@ services:
     ulimits:
       memlock: -1
       stack: 67108864
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: ["gpu"]
-              device_ids: ["0"]
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           capabilities: ["gpu"]
+    #           device_ids: ["1"]
     env_file:
       - .env
     ports:
@@ -106,8 +106,8 @@ services:
         "jupyter-lab",
         "--ip=0.0.0.0",
         "--no-browser",
-        "--allow-root",
         "--port=8888",
+        "--allow-root",
         "--ServerApp.token=''",
         "--ServerApp.password=''",
       ]
@@ -120,7 +120,7 @@ services:
         source: workspace
         target: /workspace
       - type: bind
-        source: photo_data
+        source: ${IMAGE_FOLDERS}
         target: /data/photos
 
   redis-db:

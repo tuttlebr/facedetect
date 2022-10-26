@@ -1,11 +1,7 @@
-import io
 import json
 import logging
-import os
 
-import numpy as np
 import triton_python_backend_utils as pb_utils
-from PIL import Image
 from pillow_heif import register_heif_opener
 
 register_heif_opener()

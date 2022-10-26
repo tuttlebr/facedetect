@@ -20,7 +20,7 @@ _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(
     DESCRIPTOR, "postprocessor_config_pb2", globals()
 )
-if _descriptor._USE_C_DESCRIPTORS == False:
+if not _descriptor._USE_C_DESCRIPTORS:
 
     DESCRIPTOR._options = None
     _POSTPROCESSINGCONFIG_CLASSWISECLUSTERINGCONFIGENTRY._options = None

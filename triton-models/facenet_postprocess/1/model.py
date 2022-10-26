@@ -101,7 +101,8 @@ class TritonPythonModel:
         for idx, request in enumerate(requests):
             # Get inputs
 
-            batchwise_boxes, batchwise_proba = self.postprocessor.apply(request, idx)
+            batchwise_boxes, batchwise_proba = self.postprocessor.apply(
+                request, idx)
 
             out_tensor_0 = pb_utils.Tensor(
                 "true_boxes", np.array(batchwise_boxes).astype(output0_dtype)

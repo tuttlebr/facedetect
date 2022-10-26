@@ -17,10 +17,11 @@ class Frame(object):
     def __init__(self, image_path, data_format, dtype, target_shape):
         """Instantiate a frame object."""
         self._image_path = image_path
-        if data_format not in [mc.ModelInput.FORMAT_NCHW, mc.ModelInput.FORMAT_NHWC]:
+        if data_format not in [
+                mc.ModelInput.FORMAT_NCHW,
+                mc.ModelInput.FORMAT_NHWC]:
             raise NotImplementedError(
-                "Data format not in the supported data format: {}".format(data_format)
-            )
+                "Data format not in the supported data format: {}".format(data_format))
         self.data_format = data_format
         self.height = None
         self.width = None
@@ -34,7 +35,8 @@ class Frame(object):
             self.c, self.h, self.w = target_shape
         else:
             self.h, self.w, self.c = target_shape
-        assert self.c in [3], "Number of channels should be 3. Got {}".format(self.c)
+        assert self.c in [
+            3], "Number of channels should be 3. Got {}".format(self.c)
         self.target_shape = target_shape
 
         self.model_img_mode = "RGB" if self.c == 3 else "L"
@@ -44,7 +46,9 @@ class Frame(object):
     def load_image(self):
         """Load the image defined."""
         if not os.path.exists(self._image_path):
-            raise NotFoundError("Cannot find image at {}".format(self._image_path))
+            raise NotFoundError(
+                "Cannot find image at {}".format(
+                    self._image_path))
         image = Image.open(self._image_path)
         self.width, self.height = image.size
 

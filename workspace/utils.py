@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import glob
-import io
 import os
 import sys
 from functools import partial, singledispatch
@@ -12,7 +11,6 @@ from typing import List, Optional
 
 import numpy as np
 import tritonclient.grpc as grpcclient
-from dotenv import load_dotenv
 from PIL import Image, ImageDraw
 from pillow_heif import register_heif_opener
 from redis_om import Field, JsonModel, Migrator, get_redis_connection
@@ -33,11 +31,11 @@ IMAGE_FOLDER = os.getenv("IMAGE_FOLDER")
 JSON_DATA_FILE = os.getenv("JSON_DATA_FILE")
 FACE_DETECT_MODEL_NAME = os.getenv("FACE_DETECT_MODEL_NAME")
 FPENET_MODEL_NAME = os.getenv("FPENET_MODEL_NAME")
-DLIB_FACE_DESCRIPTOR_MODEL_NAME = os.getenv("DLIB_FACE_DESCRIPTOR_MODEL_NAME")
 N_DEBUG = int(os.getenv("N_DEBUG"))
 THREAD_CHUNKS = int(os.getenv("THREAD_CHUNKS"))
 
-triton_client = grpcclient.InferenceServerClient(url=TRITON_SERVER_URL, verbose=False)
+triton_client = grpcclient.InferenceServerClient(
+    url=TRITON_SERVER_URL, verbose=False)
 Migrator().run()
 
 
@@ -159,7 +157,9 @@ def index_subdirectory(directory, follow_links, formats):
     filenames = []
     for root, fname in valid_files:
         absolute_path = os.path.join(root, fname)
-        relative_path = os.path.join(dirname, os.path.relpath(absolute_path, directory))
+        relative_path = os.path.join(
+            dirname, os.path.relpath(
+                absolute_path, directory))
         filenames.append(relative_path)
     filenames_trim = [i for i in filenames if r"@" not in i]
     return filenames_trim
@@ -191,8 +191,11 @@ def index_directory(
     filenames = []
     for dirpath in (subdir for subdir in subdirs):
         results.append(
-            pool.apply_async(index_subdirectory, (dirpath, follow_links, formats))
-        )
+            pool.apply_async(
+                index_subdirectory,
+                (dirpath,
+                 follow_links,
+                 formats)))
 
     for res in results:
         partial_filenames = res.get()
@@ -203,7 +206,10 @@ def index_directory(
     file_paths = [os.path.join(directory, fname) for fname in filenames]
     index_end = default_timer()
     runtime = index_end - index_start
-    print("Indexed {:,} file(s) in {:.3f} seconds.".format(len(file_paths), runtime))
+    print(
+        "Indexed {:,} file(s) in {:.3f} seconds.".format(
+            len(file_paths),
+            runtime))
 
     return file_paths
 
@@ -234,9 +240,10 @@ def submit_to_facedetect(
     nchw = np.transpose(np.array(resized_img), (2, 0, 1))
     norm = nchw * (1 / 255.0)
     image_data = np.expand_dims(norm, axis=0).astype("float32")
-    true_image_size = np.expand_dims(np.array(np.array(image).shape), axis=0).astype(
-        "int64"
-    )
+    true_image_size = np.expand_dims(
+        np.array(
+            np.array(image).shape),
+        axis=0).astype("int64")
 
     inputs = [
         grpcclient.InferInput(input_names[0], image_data.shape, "FP32"),
@@ -263,14 +270,16 @@ def submit_to_facedetect(
 
 def get_face_clip(img, image_wise_bboxes):
     image_wise_bboxes = np.array([float(i) for i in image_wise_bboxes])
-    image = img.crop((image_wise_bboxes)).resize((80, 80), Image.Resampling.LANCZOS)
+    image = img.crop(
+        (image_wise_bboxes)).resize(
+        (80, 80), Image.Resampling.LANCZOS)
     fpenet_image = np.array(image, dtype="float32").reshape((1, 1, 80, 80))
 
     return fpenet_image
 
 
 def submit_to_fpenet(
-    json_items,
+    model,
     input_name,
     output_names,
     request_id="",
@@ -279,15 +288,24 @@ def submit_to_fpenet(
 ):
     responses = []
     clips = []
-    image = Image.open(json_items["filename"])
+    image = Image.open(model.filename)
     if image.mode != "L":
         image = image.convert("L")
     infer_start = default_timer()
-    for face in json_items["faces"]:
-        image_wise_bboxes = tuple(face["bbox"].values())
+    for face in model.faces:
+        image_wise_bboxes = (
+            face.bbox.x1,
+            face.bbox.y1,
+            face.bbox.x2,
+            face.bbox.y2,
+        )
         fpenet_image = get_face_clip(image, image_wise_bboxes)
 
-        inputs = [grpcclient.InferInput(input_name, fpenet_image.shape, "FP32")]
+        inputs = [
+            grpcclient.InferInput(
+                input_name,
+                fpenet_image.shape,
+                "FP32")]
         inputs[0].set_data_from_numpy(fpenet_image)
 
         outputs = [
@@ -298,7 +316,7 @@ def submit_to_fpenet(
         response = triton_client.infer(
             FPENET_MODEL_NAME, inputs, outputs=outputs, request_id=request_id
         )
-        responses.append(response.as_numpy(output_names[1]))
+        responses.append(response)
         if return_clips:
             clips.append(fpenet_image)
 
@@ -308,54 +326,10 @@ def submit_to_fpenet(
         runtime = infer_end - infer_start
         print(
             "Inference took {:.3f} seconds for {:,} faces.".format(
-                runtime, len(json_items["faces"])
+                runtime, len(model.faces)
             )
         )
     if return_clips:
         return responses, clips
     else:
         return responses
-
-
-def submit_to_dlib(json_items, input_name, output_names, request_id="", timeit=False):
-    responses = []
-    image = Image.open(json_items["filename"])
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-
-    infer_start = default_timer()
-    for face in json_items["faces"]:
-        inputs = []
-        outputs = []
-        try:
-            del face["bbox"]["pk"]
-        except:
-            continue
-        image_wise_bboxes = tuple(face["bbox"].values())
-        img_crop = image.crop((image_wise_bboxes))
-        img_resize = img_crop.resize((150, 150), Image.Resampling.LANCZOS)
-        face_clip = np.expand_dims(np.array(img_resize), axis=0)
-
-        inputs.append(grpcclient.InferInput("face_clip", face_clip.shape, "UINT8"))
-
-        inputs[0].set_data_from_numpy(face_clip)
-
-        outputs = [grpcclient.InferRequestedOutput("face_descriptor")]
-
-        response = triton_client.infer(
-            DLIB_FACE_DESCRIPTOR_MODEL_NAME,
-            inputs,
-            outputs=outputs,
-            request_id=request_id,
-        )
-        responses.append(response)
-
-    infer_end = default_timer()
-    if timeit:
-        print(
-            "Inference took {:.3f} seconds for {:,} faces.".format(
-                infer_end - infer_start
-            )
-        )
-
-    return responses

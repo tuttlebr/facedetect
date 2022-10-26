@@ -24,7 +24,5 @@ RUN wget ${PROTOBUF_URL} -O proto.zip \
     && mv bin/protoc /usr/local/bin
 
 
-# Upgrade pip to help build DLIB et al...
 COPY requirements.txt .
-RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install -r requirements.txt
