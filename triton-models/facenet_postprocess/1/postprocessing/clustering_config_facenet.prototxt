@@ -3,12 +3,12 @@ stride: 16
 classwise_clustering_config{
     key: "face"
     value: {
-        coverage_threshold: 0.005
+        coverage_threshold: 0.2
         minimum_bounding_box_height: 4
         dbscan_config{
-            dbscan_eps: 0.3
+            dbscan_eps: 0.65
             dbscan_min_samples: 5
-            dbscan_confidence_threshold: 0.2
+            dbscan_confidence_threshold: 1
         }
         bbox_color{
             R: 118

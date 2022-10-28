@@ -1,9 +1,9 @@
 name: "fpenet"
 platform: "tensorrt_plan"
-default_model_filename: "model.plan"
-max_batch_size: 16
+default_model_filename: "model.trt"
+max_batch_size: 64
 dynamic_batching {
-  preferred_batch_size: [ 1, 8, 16 ]
+  preferred_batch_size: [ 1, 8, 16, 32, 64 ]
   max_queue_delay_microseconds: 50000
 }
 

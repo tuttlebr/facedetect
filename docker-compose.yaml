@@ -1,15 +1,41 @@
 services:
-  # tao-converter:
-  #   build:
-  #     args:
-  #       - FROM_BASE_IMAGE=${TAO_CONVERTER_IMAGE}
-  #       - PROTOBUF_URL=${PROTOBUF_URL}
-  #       - TAO_BINARY_PATH=${TAO_BINARY_PATH}
-  #   image: tao-converter
-  #   shm_size: 16gb
-  #   ulimits:
-  #     memlock: -1
-  #     stack: 67108864
+  tao-converter:
+    image: ${TAO_CONVERTER_IMAGE}
+    shm_size: 16g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: nvidia
+    env_file:
+      - workspace/.env
+    entrypoint: ["bash", "/tmp/entrypoint.sh"]
+    volumes:
+      - type: bind
+        source: facenet_model
+        target: /tmp/facenet_model
+      - type: bind
+        source: fpenet_model
+        target: /tmp/fpenet_model
+      - type: bind
+        source: tlt-converter.sh
+        target: /tmp/entrypoint.sh
+      - type: bind
+        source: triton-models
+        target: /models
+
+  triton-server:
+    build:
+      args:
+        - FROM_BASE_IMAGE=${TRITON_SERVER_IMAGE}
+        - PROTOBUF_URL=${PROTOBUF_URL}
+      context: .
+      dockerfile: Dockerfile
+    image: triton-server
+    shm_size: 16g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    runtime: nvidia
     # deploy:
     #   resources:
     #     reservations:
@@ -17,45 +43,8 @@ services:
     #         - driver: nvidia
     #           capabilities: ["gpu"]
     #           device_ids: ["0:0"]
-  #   env_file:
-  #     - .env
-  #   entrypoint: ["bash", "/tmp/entrypoint.sh"]
-  #   volumes:
-  #     - type: bind
-  #       source: facenet_model
-  #       target: /tmp/facenet_model
-  #     - type: bind
-  #       source: fpenet_model
-  #       target: /tmp/fpenet_model
-  #     - type: bind
-  #       source: tlt-converter.sh
-  #       target: /tmp/entrypoint.sh
-  #     - type: bind
-  #       source: triton-models
-  #       target: /models
-
-  triton-server:
-    build:
-      args:
-        - FROM_BASE_IMAGE=${TRITON_SERVER_IMAGE}
-        - PROTOBUF_URL=${PROTOBUF_URL}
-        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
-      context: .
-      dockerfile: Dockerfile
-    image: triton-server
-    shm_size: 16gb
-    ulimits:
-      memlock: -1
-      stack: 67108864
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: ["gpu"]
-              device_ids: ["0:0,1:0"]
     env_file:
-      - .env
+      - workspace/.env
     ports:
       - 8000:8000
       - 8001:8001
@@ -82,34 +71,29 @@ services:
       args:
         - FROM_BASE_IMAGE=${TRITON_CLIENT_IMAGE}
         - PROTOBUF_URL=${PROTOBUF_URL}
-        - TAO_BINARY_PATH=${TAO_BINARY_PATH}
       context: .
       dockerfile: Dockerfile
     image: triton-client
-    shm_size: 16gb
+    shm_size: 16g
     ulimits:
       memlock: -1
       stack: 67108864
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           capabilities: ["gpu"]
-    #           device_ids: ["1"]
     env_file:
-      - .env
+      - workspace/.env
     ports:
       - 8888:8888
     entrypoint:
       [
-        "jupyter-lab",
-        "--ip=0.0.0.0",
-        "--no-browser",
-        "--port=8888",
-        "--allow-root",
+        "jupyter",
+        "lab",
+        "--ServerApp.ip=0.0.0.0",
+        "--ServerApp.open_browser=False",
+        "--ExtensionApp.open_browser=False",
+        "--ServerApp.port=8888",
+        "--ServerApp.allow_root=True",
         "--ServerApp.token=''",
         "--ServerApp.password=''",
+        "--ServerApp.root_dir=/workspace",
       ]
     hostname: triton-client
     networks:
@@ -120,13 +104,13 @@ services:
         source: workspace
         target: /workspace
       - type: bind
-        source: ${IMAGE_FOLDERS}
-        target: /data/photos
+        source: ${HOST_IMAGE_FOLDER}
+        target: ${CONTAINER_IMAGE_FOLDER}
 
   redis-db:
     image: ${REDIS_DB_IMAGE}
     env_file:
-      - .env
+      - workspace/.env
     ports:
       - 6379:6379
     hostname: redis-db
@@ -154,7 +138,7 @@ services:
   redis-insight:
     image: ${REDIS_INSIGHT_IMAGE}
     env_file:
-      - .env
+      - workspace/.env
     ports:
       - 8003:8001
     hostname: redis-insight

@@ -5,7 +5,9 @@ tao-converter_*
 .Trash*/
 __pycache__/
 cleanup.sh
+*.trt
 *.plan
+*.onnx
 ignore.py
 *.dat
 *.rdb

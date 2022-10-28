@@ -27,7 +27,7 @@ register_heif_opener()
 
 MODEL_VERSION = os.getenv("MODEL_VERSION")
 TRITON_SERVER_URL = os.getenv("TRITON_SERVER_URL")
-IMAGE_FOLDER = os.getenv("IMAGE_FOLDER")
+CONTAINER_IMAGE_FOLDER = os.getenv("CONTAINER_IMAGE_FOLDER")
 JSON_DATA_FILE = os.getenv("JSON_DATA_FILE")
 FACE_DETECT_MODEL_NAME = os.getenv("FACE_DETECT_MODEL_NAME")
 FPENET_MODEL_NAME = os.getenv("FPENET_MODEL_NAME")
@@ -55,7 +55,7 @@ class Face(JsonModel):
 
 class Model(JsonModel):
     filename: str = Field(index=True, full_text_search=True)
-    faces: List[Face]
+    faces: Optional[List[Face]] = None
 
     class Meta:
         database = get_redis_connection()
@@ -268,14 +268,14 @@ def submit_to_facedetect(
     return response
 
 
-def get_face_clip(img, image_wise_bboxes):
+def get_face_clip(img, image_wise_bboxes, c=1, h=80, w=80):
     image_wise_bboxes = np.array([float(i) for i in image_wise_bboxes])
     image = img.crop(
         (image_wise_bboxes)).resize(
-        (80, 80), Image.Resampling.LANCZOS)
-    fpenet_image = np.array(image, dtype="float32").reshape((1, 1, 80, 80))
+        (h, w), Image.Resampling.LANCZOS)
+    clip = np.array(image, dtype="float32").reshape((1, c, h, w))
 
-    return fpenet_image
+    return clip
 
 
 def submit_to_fpenet(
