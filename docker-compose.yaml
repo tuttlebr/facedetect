@@ -36,13 +36,12 @@ services:
       memlock: -1
       stack: 67108864
     runtime: nvidia
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           capabilities: ["gpu"]
-    #           device_ids: ["0:0"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
     env_file:
       - workspace/.env
     ports:
@@ -78,6 +77,13 @@ services:
     ulimits:
       memlock: -1
       stack: 67108864
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: ["gpu"]
     env_file:
       - workspace/.env
     ports:

@@ -1,6 +1,6 @@
 name: "facenet_ensemble"
 platform: "ensemble"
-max_batch_size: 16
+max_batch_size: 64
 
 
 
