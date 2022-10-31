@@ -41,17 +41,11 @@ docker compose build
 ### Run Model Conversion
 
 ```sh
-docker compose up tao-converter
+docker compose --env-file workspace/.env up tao-converter
 ```
 
-### Start Triton
+### Start Services
 
 ```sh
-docker compose up triton-server
-```
-
-### Run Jupyter Lab
-
-```sh
-docker compose up triton-client
+docker compose --env-file workspace/.env up triton-server triton-client redis-db redis-insight
 ```
