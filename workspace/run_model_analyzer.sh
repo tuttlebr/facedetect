@@ -6,7 +6,7 @@ TableWidth=87
 
 export CPU_COUNT=$(nproc)
 export STEP_CONCURRENCY=${CPU_COUNT}
-export CONCURRENCY_RUNS=16
+export CONCURRENCY_RUNS=32
 export MIN_CONCURRENCY=${CPU_COUNT}
 export MAX_CONCURRENCY=$((${CPU_COUNT}*${CONCURRENCY_RUNS}))
 export MODEL_MANIFEST="fpenet facenet_ensemble"

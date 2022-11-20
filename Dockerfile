@@ -7,6 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Python dependencies.
 COPY requirements.txt .
 RUN python3 -m pip install -r requirements.txt
+RUN pip install --extra-index-url https://developer.download.nvidia.com/compute/redist --upgrade nvidia-dali-cuda110
 
 # Apt update to download packages required to download tao-toolkit.
 RUN apt-get update \
@@ -19,7 +20,7 @@ RUN apt-get update \
     unzip
     
 # add node.js repo and install node.js.
-RUN curl -sL https://deb.nodesource.com/setup_14.x | bash - \
+RUN curl -sL https://deb.nodesource.com/setup_16.x | bash - \
     && apt-get install -y nodejs
 
 # Install protoc as it should bind to whatever version of protobuf is used.

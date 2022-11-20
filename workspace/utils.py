@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import glob
+import math
 import os
 import sys
 from functools import partial, singledispatch
 from itertools import islice
 from multiprocessing import Pool
 from timeit import default_timer
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import tritonclient.grpc as grpcclient
@@ -50,7 +51,8 @@ class Face(JsonModel):
     bbox: Bbox
     probability: int
     label: Optional[int] = None
-    descriptor: Optional[str] = None
+    rotation: Optional[int] = None
+    descriptors: Optional[Dict] = None
 
 
 class Model(JsonModel):
@@ -93,6 +95,78 @@ def render_image(
         return image.resize((scale_w, scale_h), Image.Resampling.LANCZOS)
     else:
         return image
+
+
+def render_fpenet_image(clip, points):
+    img = Image.fromarray(
+        clip.squeeze().transpose().transpose().astype("uint8"), "L"
+    ).convert("RGB")
+    left = points[36:41]
+    right = points[42:47]
+    arc_tans = []
+    for p1, p2 in zip(left, right):
+
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        arc_tans.append(math.atan2(dy, dx))
+    rotatation = (sum(arc_tans) / len(arc_tans)) * 100
+    return img.rotate(rotatation)
+
+
+def get_fpenet_rotation(points):
+    left = points[36:41]
+    right = points[42:47]
+    arc_tans = []
+    for p1, p2 in zip(left, right):
+
+        dx = p2[0] - p1[0]
+        dy = p2[1] - p1[1]
+        arc_tans.append(math.atan2(dy, dx))
+    rotatation = int((sum(arc_tans) / len(arc_tans)) * 100)
+    return rotatation
+
+
+def load_model(model):
+    return Image.open(model.filename)
+
+
+def crop_and_rotate_clip(model):
+    img = Image.open(model.filename).convert("RGB")
+    faces = []
+    for face in model.faces:
+        tmp_img = img.crop(
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2)).rotate(
+            face.rotation)
+        faces.append(tmp_img)
+    return faces
+
+
+def crop_and_rotate_and_resize_clip(model, size=224):
+    img = Image.open(model.filename).convert("RGB")
+    faces = []
+    for face in model.faces:
+        tmp_img = img.crop(
+            (face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)).rotate(
+            face.rotation).resize(
+            (size, size), Image.Resampling.LANCZOS)
+        faces.append(tmp_img)
+    return faces
+
+
+def crop_clip(model):
+    img = Image.open(model.filename).convert("RGB")
+    faces = []
+    for face in model.faces:
+        tmp_img = img.crop(
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2))
+        faces.append(tmp_img)
+    return faces
 
 
 def load_image(img_path):
@@ -333,3 +407,48 @@ def submit_to_fpenet(
         return responses, clips
     else:
         return responses
+
+
+def parse_descriptors(image_points):
+    i = 0
+    chin = {}
+    eyebrows = {}
+    nose = {}
+    eyes = {}
+    mouth = {}
+    lips = {}
+    pupil = {}
+    ears = {}
+
+    for coordinate in image_points:
+        if i < 17:
+            chin[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 27:
+            eyebrows[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 36:
+            nose[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 48:
+            eyes[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 61:
+            mouth[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 68:
+            lips[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 76:
+            pupil[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 80:
+            ears[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        elif i < 104:
+            # Additional eye descriptors.
+            eyes[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+        i += 1
+
+    descriptor_points = {"chin": chin,
+                         "eyebrows": eyebrows,
+                         "nose": nose,
+                         "eyes": eyes,
+                         "mouth": mouth,
+                         "lips": lips,
+                         "pupil": pupil,
+                         "ears": ears
+                         }
+    return descriptor_points

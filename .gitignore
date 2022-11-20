@@ -12,3 +12,6 @@ ignore.py
 *.dat
 *.rdb
 photo_data
+ignore.ipynb
+*json_data.json
+*.so

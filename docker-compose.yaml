@@ -55,6 +55,7 @@ services:
         "--allow-metrics=true",
         "--allow-gpu-metrics=true",
         "--log-verbose=0",
+        "--repository-poll-secs=3",
       ]
     hostname: triton-server
     networks:
@@ -65,7 +66,7 @@ services:
         source: triton-models
         target: /models
 
-  triton-client:
+  batch-triton-client:
     build:
       args:
         - FROM_BASE_IMAGE=${TRITON_CLIENT_IMAGE}
@@ -77,30 +78,10 @@ services:
     ulimits:
       memlock: -1
       stack: 67108864
-    runtime: nvidia
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: ["gpu"]
     env_file:
       - workspace/.env
-    ports:
-      - 8888:8888
-    entrypoint:
-      [
-        "jupyter",
-        "lab",
-        "--ServerApp.ip=0.0.0.0",
-        "--ServerApp.open_browser=False",
-        "--ExtensionApp.open_browser=False",
-        "--ServerApp.port=8888",
-        "--ServerApp.allow_root=True",
-        "--ServerApp.token=''",
-        "--ServerApp.password=''",
-        "--ServerApp.root_dir=/workspace",
-      ]
+    entrypoint: ["python", "/workspace/run.py"]
+    working_dir: /workspace
     hostname: triton-client
     networks:
       triton-server:
@@ -112,6 +93,48 @@ services:
       - type: bind
         source: ${HOST_IMAGE_FOLDER}
         target: ${CONTAINER_IMAGE_FOLDER}
+
+  interactive-triton-client:
+    build:
+      args:
+        - FROM_BASE_IMAGE=${TRITON_CLIENT_IMAGE}
+        - PROTOBUF_URL=${PROTOBUF_URL}
+      context: .
+      dockerfile: Dockerfile
+    image: triton-client
+    runtime: nvidia
+    shm_size: 16g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    env_file:
+      - workspace/.env
+    ports:
+      - 8888:8888
+    entrypoint:
+      [
+        "jupyter",
+        "lab",
+        "--ServerApp.ip=0.0.0.0",
+        "--ServerApp.port=8888",
+        "--ServerApp.allow_root=True",
+        "--ServerApp.token=''",
+        "--ServerApp.password=''",
+        "--Application.log_level='CRITICAL'",
+      ]
+    working_dir: /workspace
+    hostname: triton-client
+    networks:
+      triton-server:
+        ipv4_address: ${TRITON_CLIENT_IP}
+    volumes:
+      - type: bind
+        source: workspace
+        target: /workspace
+      - type: bind
+        source: ${HOST_IMAGE_FOLDER}
+        target: ${CONTAINER_IMAGE_FOLDER}
+      
 
   redis-db:
     image: ${REDIS_DB_IMAGE}
@@ -141,29 +164,30 @@ services:
         target: /usr/local/etc/redis/redis.conf
     entrypoint: ["redis-server", "/usr/local/etc/redis/redis.conf"]
 
-  redis-insight:
-    image: ${REDIS_INSIGHT_IMAGE}
-    env_file:
-      - workspace/.env
-    ports:
-      - 8003:8001
-    hostname: redis-insight
-    networks:
-      triton-server:
-        ipv4_address: ${REDIS_INSIGHT_IP}
-    volumes:
-      - type: bind
-        source: redis-db/rejson.so
-        target: /usr/lib/redis/modules/rejson.so
-      - type: bind
-        source: redis-db/redisearch.so
-        target: /usr/lib/redis/modules/redisearch.so
-      - type: bind
-        source: redis-db/redisai.so
-        target: /usr/lib/redis/modules/redisai.so
-      - type: bind
-        source: redis-db/redis.conf
-        target: /usr/local/etc/redis/redis.conf
+# OPTIONAL: https://redis.com/redis-enterprise/redis-insight/
+# redis-insight:
+#   image: ${REDIS_INSIGHT_IMAGE}
+#   env_file:
+#     - workspace/.env
+#   ports:
+#     - 8003:8001
+#   hostname: redis-insight
+#   networks:
+#     triton-server:
+#       ipv4_address: ${REDIS_INSIGHT_IP}
+#   volumes:
+#     - type: bind
+#       source: redis-db/rejson.so
+#       target: /usr/lib/redis/modules/rejson.so
+#     - type: bind
+#       source: redis-db/redisearch.so
+#       target: /usr/lib/redis/modules/redisearch.so
+#     - type: bind
+#       source: redis-db/redisai.so
+#       target: /usr/lib/redis/modules/redisai.so
+#     - type: bind
+#       source: redis-db/redis.conf
+#       target: /usr/local/etc/redis/redis.conf
 
 networks:
   triton-server:

@@ -105,11 +105,11 @@ class TritonPythonModel:
                 request, idx)
 
             out_tensor_0 = pb_utils.Tensor(
-                "true_boxes", np.array(batchwise_boxes).astype(output0_dtype)
+                "true_boxes", np.asarray(batchwise_boxes)
             )
 
             out_tensor_1 = pb_utils.Tensor(
-                "true_proba", np.array(batchwise_proba).astype(output1_dtype)
+                "true_proba", np.asarray(batchwise_proba).astype(output1_dtype)
             )
 
             inference_response = pb_utils.InferenceResponse(

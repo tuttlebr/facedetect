@@ -1,33 +1,12 @@
 name: "facenet_ensemble"
 platform: "ensemble"
-max_batch_size: 64
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+max_batch_size: 32
 
 input [
   {
     name: "input_image_data", 
-    data_type: TYPE_FP32
-    format: FORMAT_NCHW
-    dims: [ 3, 416, 736 ]
-  },
-  {
-    name: "input_image_size", 
-    data_type: TYPE_INT64,
-    dims: [ 3 ]
+    data_type: TYPE_UINT8
+    dims: [ -1 ]
   }
 ]
 
@@ -52,10 +31,6 @@ output [
         input_map {
           key: "input_image_data"
           value: "input_image_data"
-        }
-        input_map {
-          key: "input_image_size"
-          value: "input_image_size"
         }
         output_map {
           key: "input_1"
