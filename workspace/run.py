@@ -15,7 +15,9 @@ for r in tqdm(delete, desc="Deleting existing keys"):
         print("There was an exception with {}\n{}".format(r, e))
 
 
-filenames = index_directory(CONTAINER_IMAGE_FOLDER)
+filenames = index_directory(
+    CONTAINER_IMAGE_FOLDER, formats=(
+        ".jpeg", ".jpg", ".png"))
 for filename in tqdm(filenames, desc="Writing filenames to redis db."):
     Model(filename=filename).save()
 models = Model.find(Model.filename % query).all()

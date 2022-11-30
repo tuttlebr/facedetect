@@ -1,7 +1,0 @@
-version: v1
-mig-configs:
-  current:
-    - devices: all
-      mig-enabled: true
-      mig-devices:
-        4g.24gb: 1

@@ -3,25 +3,21 @@ platform: "tensorrt_plan"
 default_model_filename: "model.trt"
 max_batch_size: 32
 dynamic_batching {
-  preferred_batch_size: [ 1, 8, 16, 32 ]
+  preferred_batch_size: [ 1, 16, 32 ]
   max_queue_delay_microseconds: 50000
 }
 
 instance_group [
   {
-    count: 8
+    count: 1
     kind: KIND_GPU
   }
 ]
-
-
-
 
 input [
   {
     name: "input_face_images"
     data_type: TYPE_FP32
-    format: FORMAT_NCHW
     dims: [ 1, 80, 80 ]
   }
 ]
@@ -29,17 +25,17 @@ output [
   {
     name: "conv_keypoints_m80"
     data_type: TYPE_FP32
-    dims: [ 80, 80, 80 ]
+    dims: [ -1, -1, -1 ]
   },
   {
     name: "softargmax"
     data_type: TYPE_FP32
-    dims: [ 80, 2 ]
+    dims: [ -1, 2 ]
   },
   {
     name: "softargmax:1"
     data_type: TYPE_FP32
-    dims: [ 80 ]
+    dims: [ -1 ]
   }
 
 ]

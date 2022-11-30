@@ -101,7 +101,7 @@ class DetectNetPostprocessor(Postprocessor):
         3. Filter out the bboxes from the "output_bbox/BiasAdd" blob.
         4. Cluster the filterred boxes using DBSCAN.
         5. Render the outputs on images and save them to the output_path/images
-        6. Serialize the output bboxes to KITTI Format label files in output_path/labels.
+        # 6. Serialize the output bboxes to KITTI Format label files in output_path/labels.
         """
         output_array = {}
         this_id = int(this_id)
@@ -114,6 +114,8 @@ class DetectNetPostprocessor(Postprocessor):
         request_tensor = pb_utils.get_input_tensor_by_name(
             results, "true_image_size")
         output_array["true_image_size"] = request_tensor.as_numpy()
+        output_array["true_image_size"] = np.array(([[output_array["true_image_size"][:, 0:2].min(
+        ), output_array["true_image_size"][:, 0:2].max(), output_array["true_image_size"][:, 2].min()]]))
 
         assert (
             len(self.classes) == output_array["output_cov/Sigmoid"].shape[1]

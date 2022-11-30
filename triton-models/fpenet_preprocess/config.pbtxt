@@ -1,0 +1,36 @@
+name: "fpenet_preprocess"
+backend: "dali"
+default_model_filename: "model.dali"
+max_batch_size: 32
+dynamic_batching {
+  preferred_batch_size: [ 1, 16, 32 ]
+  max_queue_delay_microseconds: 50000
+}
+
+instance_group [
+  {
+    count: 1
+    kind: KIND_GPU
+  }
+]
+
+input [
+    {
+      name: "raw_image_data"
+      data_type: TYPE_UINT8
+      dims: [ -1 ]
+    },
+    {
+      name: "true_boxes"
+      data_type: TYPE_INT32
+      dims: [ 4 ]
+    }
+  ]
+
+output [
+  {
+    name: "input_face_images"
+    data_type: TYPE_FP32
+    dims: [ 1, 80, 80 ]
+  }
+]

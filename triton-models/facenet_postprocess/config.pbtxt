@@ -3,13 +3,13 @@ backend: "python"
 default_model_filename: "model.py"
 max_batch_size: 32
 dynamic_batching {
-  preferred_batch_size: [ 1, 8, 16, 32 ]
-  max_queue_delay_microseconds: 50000
+  preferred_batch_size: [ 1, 16, 32 ]
+  max_queue_delay_microseconds: 1000000
 }
 
 instance_group [
   {
-    count: 4
+    count: 8
     kind: KIND_CPU
   }
 ]

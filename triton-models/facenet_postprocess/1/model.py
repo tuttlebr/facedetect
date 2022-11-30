@@ -54,6 +54,14 @@ class TritonPythonModel:
             output1_config["data_type"]
         )
 
+        output2_config = pb_utils.get_output_config_by_name(
+            self.model_config, "true_image_size"
+        )
+
+        self.output2_dtype = pb_utils.triton_string_to_numpy(
+            output1_config["data_type"]
+        )
+
         self.data_format = mc.ModelInput.FORMAT_NCHW
         self.classes = ["face"]
         self.postprocessing_config = (
@@ -105,15 +113,18 @@ class TritonPythonModel:
                 request, idx)
 
             out_tensor_0 = pb_utils.Tensor(
-                "true_boxes", np.asarray(batchwise_boxes)
+                "true_boxes", np.asarray(batchwise_boxes).astype(output0_dtype)
             )
 
             out_tensor_1 = pb_utils.Tensor(
                 "true_proba", np.asarray(batchwise_proba).astype(output1_dtype)
             )
 
+            out_tensor_2 = pb_utils.get_input_tensor_by_name(
+                request, "true_image_size")
+
             inference_response = pb_utils.InferenceResponse(
-                output_tensors=[out_tensor_0, out_tensor_1]
+                output_tensors=[out_tensor_0, out_tensor_1, out_tensor_2]
             )
             responses.append(inference_response)
 

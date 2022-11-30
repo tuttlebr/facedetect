@@ -23,6 +23,10 @@ else:
 
 from dotenv import load_dotenv
 
+
+from bbox import *
+
+
 load_dotenv()
 register_heif_opener()
 
@@ -58,120 +62,166 @@ class Face(JsonModel):
 class Model(JsonModel):
     filename: str = Field(index=True, full_text_search=True)
     faces: Optional[List[Face]] = None
+    channels: Optional[int] = None
+    height: Optional[int] = None
+    width: Optional[int] = None
 
     class Meta:
         database = get_redis_connection()
 
 
+def get_rotation(image):
+    w, h = image.size
+    if_rotate = h > w
+    angle = 90 * if_rotate
+    return angle
+
+
 def render_image(
-    filename,
-    image_wise_bboxes,
-    outline_color=(118, 185, 0),
-    linewidth=10,
+    model,
+    outline_color=(255, 0, 0),
+    linewidth=20,
     output_size=None,
 ):
     """Render images with overlain outputs."""
-    image = Image.open(filename)
+    image = Image.open(model.filename)
     if image.mode != "RGB":
         image = image.convert("RGB")
+    angle = get_rotation(image)
+    image = image.rotate(angle, expand=1)
+
     w, h = image.size
     draw = ImageDraw.Draw(image)
-    wpercent = 736 / w
+    wpercent = 416 / w
     linewidth = int(linewidth / wpercent)
-    for box in image_wise_bboxes:
+    for face in model.faces:
+        box = tuple((face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2))
         if (box[2] - box[0]) >= 0 and (box[3] - box[1]) >= 0:
             draw.rectangle(box, outline=outline_color)
             for i in range(linewidth):
-                x1 = max(0, box[0] - i)
-                y1 = max(0, box[1] - i)
-                x2 = min(w, box[2] + i)
-                y2 = min(h, box[3] + i)
                 draw.rectangle(box, outline=outline_color)
 
     if output_size:
         scale = output_size / w
         scale_w = int(w * scale)
         scale_h = int(h * scale)
-        return image.resize((scale_w, scale_h), Image.Resampling.LANCZOS)
-    else:
-        return image
+        image = image.resize((scale_w, scale_h), Image.Resampling.LANCZOS)
+
+    return image
 
 
 def render_fpenet_image(clip, points):
-    img = Image.fromarray(
+    image = Image.fromarray(
         clip.squeeze().transpose().transpose().astype("uint8"), "L"
     ).convert("RGB")
-    left = points[36:41]
-    right = points[42:47]
-    arc_tans = []
-    for p1, p2 in zip(left, right):
 
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        arc_tans.append(math.atan2(dy, dx))
-    rotatation = (sum(arc_tans) / len(arc_tans)) * 100
-    return img.rotate(rotatation)
+    rotatation = get_fpenet_rotation(points)
+    return image.rotate(rotatation, expand=1)
 
 
 def get_fpenet_rotation(points):
-    left = points[36:41]
-    right = points[42:47]
-    arc_tans = []
-    for p1, p2 in zip(left, right):
+    """This model predicts 68, 80 or 104 keypoints for a given face- Chin: 1-17, Eyebrows: 18-27, Nose: 28-36, Eyes: 37-48, Mouth: 49-61, Inner Lips: 62-68, Pupil: 69-76, Ears: 77-80, additional eye landmarks: 81-104. It can also handle visible or occluded flag for each keypoint."""
 
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        arc_tans.append(math.atan2(dy, dx))
-    rotatation = int((sum(arc_tans) / len(arc_tans)) * 100)
-    return rotatation
+    try:
+        points_length = len(points)
+        if points_length == 104:
+            left = points[80:91]
+            right = points[92:103]
+
+            left_xs = sum([i[0] for i in left]) // len(left)
+            left_ys = sum([i[1] for i in left]) // len(left)
+            right_xs = sum([i[0] for i in right]) // len(right)
+            right_ys = sum([i[1] for i in right]) // len(right)
+            tan = (right_ys - left_ys) / (right_xs - left_xs)
+
+            rotation = np.degrees(np.arctan(tan))
+
+        elif points_length == 80:
+            left = points[68:71]
+            right = points[72:75]
+
+            left_xs = sum([i[0] for i in left]) // len(left)
+            left_ys = sum([i[1] for i in left]) // len(left)
+            right_xs = sum([i[0] for i in right]) // len(right)
+            right_ys = sum([i[1] for i in right]) // len(right)
+            tan = (right_ys - left_ys) / (right_xs - left_xs)
+
+            rotation = np.degrees(np.arctan(tan))
+
+        # elif points_length == 68:
+        #     left = points[36:41]
+        #     right = points[42:47]
+
+        #     left_xs = sum([i[0] for i in left]) // len(left)
+        #     left_ys = sum([i[1] for i in left]) // len(left)
+        #     right_xs = sum([i[0] for i in right]) // len(right)
+        #     right_ys = sum([i[1] for i in right]) // len(right)
+        #     tan = (right_ys - left_ys) / (right_xs - left_xs)
+
+        #     rotation = np.degrees(np.arctan(tan))
+
+        else:
+            rotation = 0.0
+
+        return round(rotation, 0)
+
+    except BaseException:
+        return 0
 
 
 def load_model(model):
     return Image.open(model.filename)
 
 
-def crop_and_rotate_clip(model):
-    img = Image.open(model.filename).convert("RGB")
+def crop_and_rotate_clip(model, rotate=0):
+    image = Image.open(model.filename).convert("RGB")
     faces = []
     for face in model.faces:
-        tmp_img = img.crop(
-            (face.bbox.x1,
-             face.bbox.y1,
-             face.bbox.x2,
-             face.bbox.y2)).rotate(
-            face.rotation)
-        faces.append(tmp_img)
-    return faces
-
-
-def crop_and_rotate_and_resize_clip(model, size=224):
-    img = Image.open(model.filename).convert("RGB")
-    faces = []
-    for face in model.faces:
-        tmp_img = img.crop(
-            (face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)).rotate(
-            face.rotation).resize(
-            (size, size), Image.Resampling.LANCZOS)
-        faces.append(tmp_img)
-    return faces
-
-
-def crop_clip(model):
-    img = Image.open(model.filename).convert("RGB")
-    faces = []
-    for face in model.faces:
-        tmp_img = img.crop(
+        if rotate:
+            rotated_image = image.rotate(face.rotation, expand=1)
+        else:
+            rotated_image = image.rotate(0, expand=1)
+        cropped_image = rotated_image.crop(
             (face.bbox.x1,
              face.bbox.y1,
              face.bbox.x2,
              face.bbox.y2))
-        faces.append(tmp_img)
+        faces.append(cropped_image)
     return faces
 
 
-def load_image(img_path):
+def crop_and_rotate_and_resize_clip(model, size=224):
+    image = Image.open(model.filename).convert("RGB")
+    angle = get_rotation(image)
+    image = image.rotate(angle, expand=1)
+    faces = []
+    for face in model.faces:
+        tmp_image = image.rotate(face.rotation, expand=1).crop(
+            (face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)).rotate(
+            face.rotation, expand=1).resize(
+            (size, size), Image.Resampling.LANCZOS)
+        faces.append(tmp_image)
+    return faces
+
+
+def crop_clip(model):
+    image = Image.open(model.filename).convert("RGB")
+    angle = get_rotation(image)
+    image = image.rotate(angle, expand=1)
+    faces = []
+    for face in model.faces:
+        tmp_image = image.crop(
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2))
+        faces.append(tmp_image)
+    return faces
+
+
+def load_image(image_path):
     """Loads an encoded image as an array of bytes."""
-    return np.expand_dims(np.fromfile(img_path, dtype="uint8"), axis=0)
+    return np.expand_dims(np.fromfile(image_path, dtype="uint8"), axis=0)
 
 
 def take(n, iterable):
@@ -304,47 +354,27 @@ def to_serializable_int(val):
 
 
 def submit_to_facedetect(
-    filename, input_names, output_names, request_id="", timeit=False
+    filename, input_names, output_names, request_id=""
 ):
-    image = Image.open(filename)
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-    true_image_size = np.array(image).shape
-    resized_img = image.resize((736, 416), Image.Resampling.LANCZOS)
-    nchw = np.transpose(np.array(resized_img), (2, 0, 1))
-    norm = nchw * (1 / 255.0)
-    image_data = np.expand_dims(norm, axis=0).astype("float32")
-    true_image_size = np.expand_dims(
-        np.array(
-            np.array(image).shape),
-        axis=0).astype("int64")
-
-    inputs = [
-        grpcclient.InferInput(input_names[0], image_data.shape, "FP32"),
-        grpcclient.InferInput(input_names[1], true_image_size.shape, "INT64"),
-    ]
+    image_data = np.fromfile(filename, dtype='uint8')
+    image_data = np.expand_dims(image_data, axis=0)
+    inputs = [grpcclient.InferInput(input_names[0], image_data.shape, "UINT8")]
     inputs[0].set_data_from_numpy(image_data)
-    inputs[1].set_data_from_numpy(true_image_size)
 
     outputs = [
         grpcclient.InferRequestedOutput(output_name, class_count=0)
         for output_name in output_names
     ]
-    infer_start = default_timer()
     response = triton_client.infer(
         FACE_DETECT_MODEL_NAME, inputs, outputs=outputs, request_id=request_id
     )
-    infer_end = default_timer()
 
-    if timeit:
-        runtime = index_end - index_start
-        print("Inference took {:.3f} seconds.".format(runtime))
     return response
 
 
-def get_face_clip(img, image_wise_bboxes, c=1, h=80, w=80):
+def get_face_clip(image, image_wise_bboxes, c=1, h=80, w=80):
     image_wise_bboxes = np.array([float(i) for i in image_wise_bboxes])
-    image = img.crop(
+    image = image.crop(
         (image_wise_bboxes)).resize(
         (h, w), Image.Resampling.LANCZOS)
     clip = np.array(image, dtype="float32").reshape((1, c, h, w))
@@ -354,33 +384,32 @@ def get_face_clip(img, image_wise_bboxes, c=1, h=80, w=80):
 
 def submit_to_fpenet(
     model,
-    input_name,
-    output_names,
-    request_id="",
-    timeit=False,
-    return_clips=False,
+    input_names=["raw_image_data", "true_boxes"],
+    output_names=["conv_keypoints_m80", "softargmax", "softargmax:1"],
 ):
     responses = []
-    clips = []
-    image = Image.open(model.filename)
-    if image.mode != "L":
-        image = image.convert("L")
-    infer_start = default_timer()
-    for face in model.faces:
-        image_wise_bboxes = (
-            face.bbox.x1,
-            face.bbox.y1,
-            face.bbox.x2,
-            face.bbox.y2,
-        )
-        fpenet_image = get_face_clip(image, image_wise_bboxes)
+    image_data = np.fromfile(model.filename, dtype='uint8')
+    image_data = np.expand_dims(image_data, axis=0)
 
+    for face in model.faces:
+        bboxes = np.asarray(
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2),
+            dtype="int32")
+        bboxes = np.expand_dims(bboxes, axis=0)
         inputs = [
             grpcclient.InferInput(
-                input_name,
-                fpenet_image.shape,
-                "FP32")]
-        inputs[0].set_data_from_numpy(fpenet_image)
+                input_names[0],
+                image_data.shape,
+                "UINT8"),
+            grpcclient.InferInput(
+                input_names[1],
+                bboxes.shape,
+                "INT32")]
+        inputs[0].set_data_from_numpy(image_data)
+        inputs[1].set_data_from_numpy(bboxes)
 
         outputs = [
             grpcclient.InferRequestedOutput(output_name, class_count=0)
@@ -388,25 +417,10 @@ def submit_to_fpenet(
         ]
 
         response = triton_client.infer(
-            FPENET_MODEL_NAME, inputs, outputs=outputs, request_id=request_id
+            FPENET_MODEL_NAME, inputs, outputs=outputs, request_id=model.pk
         )
         responses.append(response)
-        if return_clips:
-            clips.append(fpenet_image)
-
-    infer_end = default_timer()
-
-    if timeit:
-        runtime = infer_end - infer_start
-        print(
-            "Inference took {:.3f} seconds for {:,} faces.".format(
-                runtime, len(model.faces)
-            )
-        )
-    if return_clips:
-        return responses, clips
-    else:
-        return responses
+    return responses
 
 
 def parse_descriptors(image_points):
@@ -452,3 +466,41 @@ def parse_descriptors(image_points):
                          "ears": ears
                          }
     return descriptor_points
+
+
+def new_rotated_bbox(model):
+    image = Image.open(model.filename)
+    angle = get_rotation(image)
+    image = image.rotate(angle, expand=1)
+    w = model.width
+    h = model.height
+    cx, cy = w // 2, h // 2
+
+    for i, face in enumerate(model.faces):
+        bboxes = np.array(
+            [(face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)], dtype="float32")
+        corners = get_corners(bboxes)
+        corners = np.hstack((corners, bboxes[:, 4:]))
+        img_rotated = image.rotate(face.rotation)
+        corners[:, :8] = rotate_box(
+            corners[:, :8], face.rotation, cx, cy, h, w)
+        new_bbox = get_enclosing_box(corners)
+        scale_factor_x = img_rotated.size[0] / w
+        scale_factor_y = img_rotated.size[1] / h
+
+        img_rotated = img_rotated.resize((w, h))
+
+        new_bbox[:,
+                 :4] /= [scale_factor_x,
+                         scale_factor_y,
+                         scale_factor_x,
+                         scale_factor_y]
+        bboxes = new_bbox
+        bboxes = clip_box(bboxes, [0, 0, w, h], 0.25).squeeze()
+
+        model.faces[i].bbox.x1 = int(round(bboxes[0], 0))
+        model.faces[i].bbox.y1 = int(round(bboxes[1], 0))
+        model.faces[i].bbox.x2 = int(round(bboxes[2], 0))
+        model.faces[i].bbox.y2 = int(round(bboxes[3], 0))
+
+    return model
