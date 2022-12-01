@@ -2,46 +2,6 @@ import cv2
 import numpy as np
 
 
-def draw_rect(im, cords, color=None):
-    """Draw the rectangle on the image
-
-    Parameters
-    ----------
-
-    im : numpy.ndarray
-        numpy image
-
-    cords: numpy.ndarray
-        Numpy array containing bounding boxes of shape `N X 4` where N is the
-        number of bounding boxes and the bounding boxes are represented in the
-        format `x1 y1 x2 y2`
-
-    Returns
-    -------
-
-    numpy.ndarray
-        numpy image with bounding boxes drawn on it
-
-    """
-
-    im = im.copy()
-
-    cords = cords[:, :4]
-    cords = cords.reshape(-1, 4)
-    if not color:
-        color = [255, 255, 255]
-    for cord in cords:
-
-        pt1, pt2 = (cord[0], cord[1]), (cord[2], cord[3])
-
-        pt1 = int(pt1[0]), int(pt1[1])
-        pt2 = int(pt2[0]), int(pt2[1])
-
-        im = cv2.rectangle(im.copy(), pt1, pt2, color,
-                           int(max(im.shape[:2]) / 200))
-    return im
-
-
 def bbox_area(bbox):
     return (bbox[:, 2] - bbox[:, 0]) * (bbox[:, 3] - bbox[:, 1])
 
@@ -137,7 +97,6 @@ def rotate_im(image, angle):
     # perform the actual rotation and return the image
     image = cv2.warpAffine(image, M, (nW, nH))
 
-#    image = cv2.resize(image, (w,h))
     return image
 
 
@@ -216,9 +175,7 @@ def rotate_box(corners, angle, cx, cy, h, w):
 
     corners = corners.reshape(-1, 2)
     corners = np.hstack(
-        (corners, np.ones(
-            (corners.shape[0], 1), dtype=type(
-                corners[0][0]))))
+        (corners, np.ones((corners.shape[0], 1), dtype=type(corners[0][0]))))
 
     M = cv2.getRotationMatrix2D((cx, cy), angle, 1.0)
 
@@ -268,38 +225,3 @@ def get_enclosing_box(corners):
     final = np.hstack((xmin, ymin, xmax, ymax, corners[:, 8:]))
 
     return final
-
-
-def letterbox_image(img, inp_dim):
-    '''resize image with unchanged aspect ratio using padding
-
-    Parameters
-    ----------
-
-    img : numpy.ndarray
-        Image
-
-    inp_dim: tuple(int)
-        shape of the reszied image
-
-    Returns
-    -------
-
-    numpy.ndarray:
-        Resized image
-
-    '''
-
-    inp_dim = (inp_dim, inp_dim)
-    img_w, img_h = img.shape[1], img.shape[0]
-    w, h = inp_dim
-    new_w = int(img_w * min(w / img_w, h / img_h))
-    new_h = int(img_h * min(w / img_w, h / img_h))
-    resized_image = cv2.resize(img, (new_w, new_h))
-
-    canvas = np.full((inp_dim[1], inp_dim[0], 3), 0)
-
-    canvas[(h - new_h) // 2:(h - new_h) // 2 + new_h, (w - new_w) //
-           2:(w - new_w) // 2 + new_w, :] = resized_image
-
-    return canvas

@@ -6,3 +6,4 @@ facenet_vpruned_quantized_v2.0.1/
 fpenet_vdeployable_v3.0/
 *.trt
 *.dali
+ignore*.ipynb

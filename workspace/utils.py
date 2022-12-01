@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import glob
-import math
 import os
-import sys
 from functools import partial, singledispatch
 from itertools import islice
 from multiprocessing import Pool
@@ -16,10 +14,6 @@ from PIL import Image, ImageDraw
 from pillow_heif import register_heif_opener
 from redis_om import Field, JsonModel, Migrator, get_redis_connection
 
-if sys.version_info >= (3, 0):
-    import queue
-else:
-    import Queue as queue
 
 from dotenv import load_dotenv
 
@@ -65,6 +59,7 @@ class Model(JsonModel):
     channels: Optional[int] = None
     height: Optional[int] = None
     width: Optional[int] = None
+    portrait: Optional[int] = None
 
     class Meta:
         database = get_redis_connection()
@@ -148,24 +143,24 @@ def get_fpenet_rotation(points):
 
             rotation = np.degrees(np.arctan(tan))
 
-        # elif points_length == 68:
-        #     left = points[36:41]
-        #     right = points[42:47]
+        elif points_length == 68:
+            left = points[36:41]
+            right = points[42:47]
 
-        #     left_xs = sum([i[0] for i in left]) // len(left)
-        #     left_ys = sum([i[1] for i in left]) // len(left)
-        #     right_xs = sum([i[0] for i in right]) // len(right)
-        #     right_ys = sum([i[1] for i in right]) // len(right)
-        #     tan = (right_ys - left_ys) / (right_xs - left_xs)
+            left_xs = sum([i[0] for i in left]) // len(left)
+            left_ys = sum([i[1] for i in left]) // len(left)
+            right_xs = sum([i[0] for i in right]) // len(right)
+            right_ys = sum([i[1] for i in right]) // len(right)
+            tan = (right_ys - left_ys) / (right_xs - left_xs)
 
-        #     rotation = np.degrees(np.arctan(tan))
+            rotation = np.degrees(np.arctan(tan))
 
         else:
             rotation = 0.0
 
         return round(rotation, 0)
 
-    except BaseException:
+    except Exception:
         return 0
 
 
@@ -180,7 +175,7 @@ def crop_and_rotate_clip(model, rotate=0):
         if rotate:
             rotated_image = image.rotate(face.rotation, expand=1)
         else:
-            rotated_image = image.rotate(0, expand=1)
+            rotated_image = image.rotate(0, expand=0)
         cropped_image = rotated_image.crop(
             (face.bbox.x1,
              face.bbox.y1,
@@ -468,39 +463,52 @@ def parse_descriptors(image_points):
     return descriptor_points
 
 
-def new_rotated_bbox(model):
-    image = Image.open(model.filename)
-    angle = get_rotation(image)
-    image = image.rotate(angle, expand=1)
-    w = model.width
-    h = model.height
+def new_rotated_bbox(model_original):
+    model = model_original.copy(deep=True)
+    w, h = (
+        model.width, model.height) if not model.portrait else (
+        model.width, model.height)
     cx, cy = w // 2, h // 2
+
+    img = np.zeros((h, w))
+    img = Image.fromarray(img, mode="RGB")
 
     for i, face in enumerate(model.faces):
         bboxes = np.array(
-            [(face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)], dtype="float32")
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2),
+            dtype="float32").reshape(
+            1,
+            4)
+
         corners = get_corners(bboxes)
         corners = np.hstack((corners, bboxes[:, 4:]))
-        img_rotated = image.rotate(face.rotation)
+        img_rotated = img.rotate(face.rotation, expand=0)
         corners[:, :8] = rotate_box(
             corners[:, :8], face.rotation, cx, cy, h, w)
         new_bbox = get_enclosing_box(corners)
         scale_factor_x = img_rotated.size[0] / w
         scale_factor_y = img_rotated.size[1] / h
 
-        img_rotated = img_rotated.resize((w, h))
+        new_bbox[:, :4] /= [scale_factor_x,
+                            scale_factor_y, scale_factor_x, scale_factor_y]
 
-        new_bbox[:,
-                 :4] /= [scale_factor_x,
-                         scale_factor_y,
-                         scale_factor_x,
-                         scale_factor_y]
-        bboxes = new_bbox
-        bboxes = clip_box(bboxes, [0, 0, w, h], 0.25).squeeze()
-
-        model.faces[i].bbox.x1 = int(round(bboxes[0], 0))
-        model.faces[i].bbox.y1 = int(round(bboxes[1], 0))
-        model.faces[i].bbox.x2 = int(round(bboxes[2], 0))
-        model.faces[i].bbox.y2 = int(round(bboxes[3], 0))
+        try:
+            clipped_new_bbox = clip_box(
+                new_bbox, [0, 0, w, h], 0.2).squeeze()
+            model.faces[i].bbox.x1 = int(round(clipped_new_bbox[0], 0))
+            model.faces[i].bbox.y1 = int(round(clipped_new_bbox[1], 0))
+            model.faces[i].bbox.x2 = int(round(clipped_new_bbox[2], 0))
+            model.faces[i].bbox.y2 = int(round(clipped_new_bbox[3], 0))
+        except IndexError:
+            # The fraction of a bbox left in the image after being clipped is
+            # less than 0.2, the clipped bounding box is ignored.
+            unclipped_new_bbox = new_bbox.squeeze()
+            model.faces[i].bbox.x1 = int(round(unclipped_new_bbox[0], 0))
+            model.faces[i].bbox.y1 = int(round(unclipped_new_bbox[1], 0))
+            model.faces[i].bbox.x2 = int(round(unclipped_new_bbox[2], 0))
+            model.faces[i].bbox.y2 = int(round(unclipped_new_bbox[3], 0))
 
     return model

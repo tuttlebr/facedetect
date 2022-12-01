@@ -10,6 +10,7 @@ services:
     build:
       args:
         - TRITON_VERSION=${MAJOR_UPDATE_VERSION}
+        - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-server
     image: triton-server-image
     shm_size: 16g
@@ -69,6 +70,7 @@ services:
     build:
       args:
         - TRITON_VERSION=${MAJOR_UPDATE_VERSION}
+        - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-client
     image: triton-client
     runtime: nvidia
