@@ -9,7 +9,7 @@ dynamic_batching {
 
 instance_group [
   {
-    count: 8
+    count: 3
     kind: KIND_CPU
   }
 ]

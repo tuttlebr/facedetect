@@ -19,11 +19,13 @@ input [
       name: "raw_image_data"
       data_type: TYPE_UINT8
       dims: [ -1 ]
+      allow_ragged_batch: true
     },
     {
       name: "true_boxes"
       data_type: TYPE_INT32
       dims: [ 4 ]
+      allow_ragged_batch: true
     }
   ]
 
