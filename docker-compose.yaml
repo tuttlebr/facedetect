@@ -13,7 +13,7 @@ services:
         - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-server
     image: triton-server-image
-    shm_size: 32g
+    shm_size: 8g
     ulimits:
       memlock: -1
       stack: 67108864
@@ -37,7 +37,7 @@ services:
 
   triton-server:
     image: triton-server-image
-    shm_size: 32g
+    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 67108864
@@ -73,10 +73,11 @@ services:
         - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-client
     image: triton-client
-    shm_size: 32g
+    shm_size: 8g
     ulimits:
       memlock: -1
       stack: 67108864
+    runtime: nvidia
     env_file:
       - .env
     ports:

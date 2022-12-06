@@ -58,13 +58,6 @@ class Model(JsonModel):
         database = get_redis_connection()
 
 
-def get_rotation(image):
-    w, h = image.size
-    if_rotate = h > w
-    angle = 90 * if_rotate
-    return angle
-
-
 def render_image(
     model,
     outline_color=(255, 0, 0),
@@ -72,11 +65,9 @@ def render_image(
     output_size=None,
 ):
     """Render images with overlain outputs."""
-    image = Image.open(model.filename)
-    if image.mode != "RGB":
-        image = image.convert("RGB")
-    angle = get_rotation(image)
-    image = image.rotate(angle, expand=1)
+    image = Image.open(model.filename).convert("RGB")
+    if_portrait = model.portrait * 90
+    image = image.rotate(if_portrait, expand=1)
 
     w, h = image.size
     draw = ImageDraw.Draw(image)
@@ -139,6 +130,8 @@ def load_model(model):
 
 def crop_and_rotate_clip(model, rotate=0):
     image = Image.open(model.filename).convert("RGB")
+    if_portrait = model.portrait * 90
+    image = image.rotate(if_portrait, expand=1)
     faces = []
     for face in model.faces:
         if rotate:
@@ -151,35 +144,6 @@ def crop_and_rotate_clip(model, rotate=0):
              face.bbox.x2,
              face.bbox.y2))
         faces.append(cropped_image)
-    return faces
-
-
-def crop_and_rotate_and_resize_clip(model, size=224):
-    image = Image.open(model.filename).convert("RGB")
-    angle = get_rotation(image)
-    image = image.rotate(angle, expand=1)
-    faces = []
-    for face in model.faces:
-        tmp_image = image.rotate(face.rotation, expand=1).crop(
-            (face.bbox.x1, face.bbox.y1, face.bbox.x2, face.bbox.y2)).rotate(
-            face.rotation, expand=1).resize(
-            (size, size), Image.Resampling.LANCZOS)
-        faces.append(tmp_image)
-    return faces
-
-
-def crop_clip(model):
-    image = Image.open(model.filename).convert("RGB")
-    angle = get_rotation(image)
-    image = image.rotate(angle, expand=1)
-    faces = []
-    for face in model.faces:
-        tmp_image = image.crop(
-            (face.bbox.x1,
-             face.bbox.y1,
-             face.bbox.x2,
-             face.bbox.y2))
-        faces.append(tmp_image)
     return faces
 
 
@@ -343,6 +307,7 @@ class RedisModelIterator(object):
         for _ in range(self.batch_size):
             model = self.iterable[self.i % self.n]
             model_batch.append(model)
+            # This line becomes the bottleneck, for image reading anyway.
             images_batch.append(
                 np.expand_dims(np.fromfile(
                     model.filename, dtype=np.uint8), axis=0)

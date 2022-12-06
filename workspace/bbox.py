@@ -3,15 +3,14 @@ from PIL import Image
 import numpy as np
 
 
-def new_rotated_bbox(model_original):
-    model = model_original.copy(deep=True)
-    w, h = (
-        model.width, model.height) if not model.portrait else (
-        model.width, model.height)
+def new_rotated_bbox(model):
+    w, h = model.width, model.height
+    image = np.zeros((h, w))
+    image = Image.fromarray(image, mode="RGB")
+    if_portrait = model.portrait * 90
+    image = image.rotate(if_portrait, expand=1)
+    w, h = image.size
     cx, cy = w // 2, h // 2
-
-    img = np.zeros((h, w))
-    img = Image.fromarray(img, mode="RGB")
 
     for i, face in enumerate(model.faces):
         bboxes = np.array(
@@ -22,15 +21,14 @@ def new_rotated_bbox(model_original):
             dtype="float32").reshape(
             1,
             4)
-        # cx, cy = ((face.bbox.x2 - face.bbox.x1), (face.bbox.y2 - face.bbox.y1))
         corners = get_corners(bboxes)
         corners = np.hstack((corners, bboxes[:, 4:]))
-        img_rotated = img.rotate(face.rotation, expand=0)
+        image_rotated = image.rotate(face.rotation, expand=0)
         corners[:, :8] = rotate_box(
             corners[:, :8], face.rotation, cx, cy, h, w)
         new_bbox = get_enclosing_box(corners)
-        scale_factor_x = img_rotated.size[0] / w
-        scale_factor_y = img_rotated.size[1] / h
+        scale_factor_x = image_rotated.size[0] / w
+        scale_factor_y = image_rotated.size[1] / h
 
         new_bbox[:, :4] /= [scale_factor_x,
                             scale_factor_y, scale_factor_x, scale_factor_y]
