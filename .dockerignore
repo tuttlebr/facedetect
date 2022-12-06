@@ -1,11 +1,11 @@
-facenet_model
-fpenet_model
 .ipynb_checkpoints/
 .Trash*/
 __pycache__/
 cleanup.sh
-*.plan
+facenet_vpruned_quantized_v2.0.1/
+fpenet_vdeployable_v3.0/
+*.trt
+*.dali
+ignore*.ipynb
 ignore.py
-*.dat
-*.rdb
-photo_data
+triton_models

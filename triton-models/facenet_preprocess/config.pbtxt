@@ -9,31 +9,29 @@ dynamic_batching {
 
 instance_group [
   {
-    count: 1
+    count: 2
     kind: KIND_GPU
   }
 ]
-
-
-
   
 input [
     {
-      name: "input_image_data", 
+      name: "input_image_data"
       data_type: TYPE_UINT8
       dims: [ -1 ]
+      allow_ragged_batch: true
     }
 ]
  
 output [
     {
-      name: "input_1", 
-      data_type: TYPE_FP32,
+      name: "input_1"
+      data_type: TYPE_FP32
       dims: [ 3, 416, 736 ]
     },
     {
-      name: "true_image_size", 
-      data_type: TYPE_INT64,
+      name: "true_image_size"
+      data_type: TYPE_INT64
       dims: [ 3 ]
     }
 ]

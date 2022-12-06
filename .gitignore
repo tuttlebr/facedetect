@@ -7,3 +7,4 @@ fpenet_vdeployable_v3.0/
 *.trt
 *.dali
 ignore*.ipynb
+ignore.py

@@ -1,5 +1,57 @@
 import cv2
+from PIL import Image
 import numpy as np
+
+
+def new_rotated_bbox(model_original):
+    model = model_original.copy(deep=True)
+    w, h = (
+        model.width, model.height) if not model.portrait else (
+        model.width, model.height)
+    cx, cy = w // 2, h // 2
+
+    img = np.zeros((h, w))
+    img = Image.fromarray(img, mode="RGB")
+
+    for i, face in enumerate(model.faces):
+        bboxes = np.array(
+            (face.bbox.x1,
+             face.bbox.y1,
+             face.bbox.x2,
+             face.bbox.y2),
+            dtype="float32").reshape(
+            1,
+            4)
+        # cx, cy = ((face.bbox.x2 - face.bbox.x1), (face.bbox.y2 - face.bbox.y1))
+        corners = get_corners(bboxes)
+        corners = np.hstack((corners, bboxes[:, 4:]))
+        img_rotated = img.rotate(face.rotation, expand=0)
+        corners[:, :8] = rotate_box(
+            corners[:, :8], face.rotation, cx, cy, h, w)
+        new_bbox = get_enclosing_box(corners)
+        scale_factor_x = img_rotated.size[0] / w
+        scale_factor_y = img_rotated.size[1] / h
+
+        new_bbox[:, :4] /= [scale_factor_x,
+                            scale_factor_y, scale_factor_x, scale_factor_y]
+
+        try:
+            clipped_new_bbox = clip_box(
+                new_bbox, [0, 0, w, h], 0.2).squeeze()
+            model.faces[i].bbox.x1 = int(round(clipped_new_bbox[0], 0))
+            model.faces[i].bbox.y1 = int(round(clipped_new_bbox[1], 0))
+            model.faces[i].bbox.x2 = int(round(clipped_new_bbox[2], 0))
+            model.faces[i].bbox.y2 = int(round(clipped_new_bbox[3], 0))
+        except IndexError:
+            # The fraction of a bbox left in the image after being clipped is
+            # less than 0.2, the clipped bounding box is ignored.
+            unclipped_new_bbox = new_bbox.squeeze()
+            model.faces[i].bbox.x1 = int(round(unclipped_new_bbox[0], 0))
+            model.faces[i].bbox.y1 = int(round(unclipped_new_bbox[1], 0))
+            model.faces[i].bbox.x2 = int(round(unclipped_new_bbox[2], 0))
+            model.faces[i].bbox.y2 = int(round(unclipped_new_bbox[3], 0))
+
+    return model
 
 
 def bbox_area(bbox):
