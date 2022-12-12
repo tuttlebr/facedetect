@@ -143,7 +143,7 @@ def crop_and_rotate_clip(model, rotate=0, resize=0):
             (face.bbox.x1,
              face.bbox.y1,
              face.bbox.x2,
-             face.bbox.y2))
+             face.bbox.y2)).rotate((-1*if_rotate), expand=1)
 
         if resize:
             cropped_image = cropped_image.resize(
