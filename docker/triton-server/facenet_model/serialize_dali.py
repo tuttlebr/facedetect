@@ -6,6 +6,11 @@ SAVE_AS = "/models/facenet_preprocess/1/model.dali"
 
 
 class FacenetPipeline:
+    """Grayscale Image whose values in RGB channels are the same. 736 X 416 X 3
+    Channel Ordering of the Input: NCHW, where N = Batch Size, C = number of
+    channels (3), H = Height of images (416), W = Width of the images (736)
+    Input scale: 1/255.0 Mean subtraction: None"""
+
     def __init__(self):
         self.raw_image_tensor = fn.external_source(
             name="input_image_data")
@@ -39,7 +44,7 @@ class FacenetPipeline:
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=32, num_threads=4, device_id=-1)
+    @pipeline_def(batch_size=64, num_threads=8)
     def facenet_reshape(self):
         self.load_images()
         self.color_space_conversion()

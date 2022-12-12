@@ -6,6 +6,8 @@ SAVE_AS = "/models/fpenet_preprocess/1/model.dali"
 
 
 class FPENetPipeline:
+    """Grayscale face clips reshaped to 1 x 80 X 80"""
+
     def __init__(self):
         self.raw_image_tensor = fn.external_source(
             name="raw_image_data")
@@ -20,14 +22,14 @@ class FPENetPipeline:
     def maybe_rotate(self):
         # if_rotate = height > width
         if_rotate = self.shapes[0] > self.shapes[1]
-        angle = 90.0 * if_rotate
-        self.image_tensor = fn.rotate(self.image_tensor, angle=angle)
+        self.angle = 90.0 * if_rotate
+        self.image_tensor = fn.rotate(self.image_tensor, angle=self.angle)
 
     def slice_bbox(self):
         self.image_tensor = fn.slice(self.image_tensor,
                                      start=self.bboxes[:2],
                                      end=self.bboxes[2:],
-                                     out_of_bounds_policy="pad",
+                                     out_of_bounds_policy="trim_to_shape",
                                      )
 
     def resize_slice_bbox(self):
@@ -39,10 +41,12 @@ class FPENetPipeline:
             dtype=types.FLOAT,
         )
 
+        self.image_tensor = fn.rotate(self.image_tensor, angle=-self.angle)
+
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=32, num_threads=4, device_id=-1)
+    @pipeline_def(batch_size=64, num_threads=8)
     def fpenet_transform(self):
         self.load_images()
         self.maybe_rotate()

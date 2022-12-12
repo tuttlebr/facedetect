@@ -9,7 +9,9 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import tritonclient.grpc as grpcclient
-from PIL import Image, ImageDraw
+from nvidia.dali.pipeline import Pipeline
+import nvidia.dali.fn as fn
+from PIL import Image, ImageDraw, ImageFile
 from redis_om import Field, JsonModel, Migrator, get_redis_connection
 
 
@@ -18,13 +20,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 MODEL_VERSION = os.getenv("MODEL_VERSION")
 TRITON_SERVER_URL = os.getenv("TRITON_SERVER_URL")
 CONTAINER_IMAGE_FOLDER = os.getenv("CONTAINER_IMAGE_FOLDER")
 JSON_DATA_FILE = os.getenv("JSON_DATA_FILE")
 FACE_DETECT_MODEL_NAME = os.getenv("FACE_DETECT_MODEL_NAME")
 FPENET_MODEL_NAME = os.getenv("FPENET_MODEL_NAME")
-THREAD_CHUNKS = int(os.getenv("THREAD_CHUNKS"))
 
 triton_client = grpcclient.InferenceServerClient(
     url=TRITON_SERVER_URL, verbose=False)
@@ -40,10 +42,12 @@ class Bbox(JsonModel):
 
 class Face(JsonModel):
     bbox: Bbox
-    probability: int
+    probability: float
     label: Optional[int] = None
     rotation: Optional[int] = None
     descriptors: Optional[Dict] = None
+    face_vector: Optional[List[float]] = None
+    center: Optional[List[int]] = None
 
 
 class Model(JsonModel):
@@ -66,10 +70,9 @@ def render_image(
 ):
     """Render images with overlain outputs."""
     image = Image.open(model.filename).convert("RGB")
-    if_portrait = model.portrait * 90
-    image = image.rotate(if_portrait, expand=1)
-
-    w, h = image.size
+    if_rotate = 90 * model.portrait
+    image = image.rotate(if_rotate, expand=1)
+    w, h = model.width, model.height
     draw = ImageDraw.Draw(image)
     wpercent = 416 / w
     linewidth = int(linewidth / wpercent)
@@ -90,24 +93,19 @@ def render_image(
 
 
 def get_fpenet_rotation(points):
-    """This model predicts 68, 80 or 104 keypoints for a given face- Chin: 1-17,
-    Eyebrows: 18-27, Nose: 28-36, Eyes: 37-48, Mouth: 49-61, Inner Lips: 62-68,
-    Pupil: 69-76, Ears: 77-80, additional eye landmarks: 81-104. It can also
-    handle visible or occluded flag for each keypoint."""
+    """This model predicts 68, 80 or 104 keypoints for a given face-
+        Chin: 0-16
+        Eyebrows: 17-26
+        Nose: 27-36
+        Eyes: 36-47
+        Mouth: 48-60
+        Inner Lips: 61-67
+        Pupil: 68-75
+        Ears: 76-79
+        additional eye landmarks: 80-103
+        It can also handle visible or occluded flag for each keypoint."""
 
-    points_length = len(points)
-    if points_length >= 80:
-        left = points[68:71]
-        right = points[72:75]
-        left_xs = sum([i[0] for i in left]) // len(left)
-        left_ys = sum([i[1] for i in left]) // len(left)
-        right_xs = sum([i[0] for i in right]) // len(right)
-        right_ys = sum([i[1] for i in right]) // len(right)
-        tan = (right_ys - left_ys) / (right_xs - left_xs)
-
-        rotation = np.degrees(np.arctan(tan))
-
-    elif points_length == 68:
+    try:
         left = points[36:41]
         right = points[42:47]
         left_xs = sum([i[0] for i in left]) // len(left)
@@ -118,20 +116,23 @@ def get_fpenet_rotation(points):
 
         rotation = np.degrees(np.arctan(tan))
 
-    else:
-        rotation = 0.0
+    except BaseException:
+        rotation = 0
 
     return round(rotation, 0)
 
 
 def load_model(model):
-    return Image.open(model.filename)
+    image = Image.open(model.filename)
+    if_rotate = 90 * model.portrait
+    return image.rotate(if_rotate, expand=1)
 
 
-def crop_and_rotate_clip(model, rotate=0):
+def crop_and_rotate_clip(model, rotate=0, resize=0):
     image = Image.open(model.filename).convert("RGB")
-    if_portrait = model.portrait * 90
-    image = image.rotate(if_portrait, expand=1)
+    if_rotate = 90 * model.portrait
+    image = image.rotate(if_rotate, expand=1)
+
     faces = []
     for face in model.faces:
         if rotate:
@@ -143,6 +144,10 @@ def crop_and_rotate_clip(model, rotate=0):
              face.bbox.y1,
              face.bbox.x2,
              face.bbox.y2))
+
+        if resize:
+            cropped_image = cropped_image.resize(
+                size=(150, 150), resample=Image.Resampling.LANCZOS)
         faces.append(cropped_image)
     return faces
 
@@ -274,23 +279,11 @@ def parse_descriptors(image_points):
 
 
 class RedisModelIterator(object):
-    def __init__(self, models, batch_size, device_id=0, num_gpus=1):
+    def __init__(self, models, batch_size):
+        self.models = models
         self.batch_size = batch_size
-        self.iterable = models
-
-        # whole
-        self.data_set_len = len(self.iterable)
-
-        # shard
-        self.iterable = self.iterable[
-            self.data_set_len
-            * device_id
-            // num_gpus: self.data_set_len
-            * (device_id + 1)
-            // num_gpus
-        ]
-
-        self.n = len(self.iterable)
+        self.data_set_len = len(self.models)
+        self.n = self.data_set_len
 
     def __iter__(self):
         self.i = 0
@@ -298,22 +291,15 @@ class RedisModelIterator(object):
 
     def __next__(self):
         model_batch = []
-        images_batch = []
-
         if self.i >= self.n:
             self.__iter__()
             raise StopIteration
 
         for _ in range(self.batch_size):
-            model = self.iterable[self.i % self.n]
+            model = self.models[self.i % self.n]
             model_batch.append(model)
-            # This line becomes the bottleneck, for image reading anyway.
-            images_batch.append(
-                np.expand_dims(np.fromfile(
-                    model.filename, dtype=np.uint8), axis=0)
-            )
             self.i += 1
-        return [model_batch], [images_batch]
+        return model_batch
 
     def __len__(self):
         return self.data_set_len
@@ -387,7 +373,10 @@ class TritonClient:
             model_name: str,
             model_version: str,
             url,
-            verbose=False):
+            verbose=False,
+            concurrency=1,
+            max_batch_size=32,
+    ):
         self.model_name = model_name
         self.model_version = model_version
         self.url = url
@@ -406,31 +395,59 @@ class TritonClient:
             if self.model_name == FACE_DETECT_MODEL_NAME
             else self._get_fpenet_input
         )
+        self.concurrency = concurrency
+        self.max_batch_size = self.model_config.max_batch_size
 
     @staticmethod
-    def _get_facedetect_input(model_batch, image_batch, names):
+    def _get_facedetect_input(
+            models_batch,
+            batch_size,
+            names=["input_image_data"],
+            **kwargs):
+        files = [model.filename for model in models_batch]
+        request_ids = [model.pk for model in models_batch]
+        pipe = Pipeline(batch_size=batch_size, num_threads=4,
+                        device_id=None, **kwargs)
         inputs = []
-        request_ids = []
-        for model, image in zip(model_batch, image_batch):
-            request_ids.append(model.pk)
-            inputs.append(
-                [
-                    grpcclient.InferInput(
-                        names[0], image.shape, np_to_triton_dtype(image.dtype)
-                    )
-                ]
-            )
+        with pipe:
+            images, _ = fn.readers.file(files=files, random_shuffle=False)
+            images = fn.reshape(images, shape=[1, -1])
+            pipe.set_outputs(images)
+        pipe.build()
+        tensor_lists = pipe.run()[0]
+        for tensor_list in tensor_lists:
+            image = np.array(tensor_list, dtype=np.uint8)
+            inputs.append([grpcclient.InferInput(
+                names[0], image.shape, np_to_triton_dtype(image.dtype))])
             inputs[-1][0].set_data_from_numpy(image)
         return inputs, request_ids
 
     @staticmethod
-    def _get_fpenet_input(model_batch, image_batch, names):
+    def _get_fpenet_input(
+            models_batch,
+            batch_size,
+            names=[
+                "raw_image_data",
+                "true_boxes"],
+            **kwargs):
+
+        files = [model.filename for model in models_batch]
+        request_ids = [model.pk for model in models_batch]
+        pipe = Pipeline(batch_size=batch_size, num_threads=4,
+                        device_id=None, **kwargs)
         inputs = []
         request_ids = []
-        for model, image in zip(model_batch, image_batch):
+        with pipe:
+            images, _ = fn.readers.file(files=files, random_shuffle=False)
+            images = fn.reshape(images, shape=[1, -1])
+            pipe.set_outputs(images)
+        pipe.build()
+        tensor_lists = pipe.run()[0]
+        for tidx, tensor_list in enumerate(tensor_lists):
+            image = np.array(tensor_list, dtype=np.uint8)
             i = 0
-            for face in model.faces:
-                request_ids.append("{}-{}".format(model.pk, i))
+            for face in models_batch[tidx].faces:
+                request_ids.append("{}-{}".format(models_batch[tidx].pk, i))
                 i += 1
                 bboxes = np.expand_dims(
                     np.asarray(
@@ -466,12 +483,10 @@ class TritonClient:
         else:
             user_data.append(result)
 
-    def test_infer(self, models_batch, images_batch):
-        assert len(models_batch) == len(images_batch)
-        inputs, request_ids = [
-            self._get_input(model_batch, image_batch, self.input_names)
-            for model_batch, image_batch in zip(models_batch, images_batch)
-        ][0]
+    def test_infer(self, models_batch):
+        assert len(models_batch) == self.max_batch_size
+        inputs, request_ids = self._get_input(
+            models_batch, self.max_batch_size, self.input_names)
         outputs = [grpcclient.InferRequestedOutput(
             name) for name in self.output_names]
         async_requests = []

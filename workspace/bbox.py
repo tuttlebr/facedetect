@@ -3,12 +3,13 @@ from PIL import Image
 import numpy as np
 
 
-def new_rotated_bbox(model):
+def new_rotated_bbox(original_model):
+    model = original_model.copy(deep=True)
     w, h = model.width, model.height
     image = np.zeros((h, w))
     image = Image.fromarray(image, mode="RGB")
-    if_portrait = model.portrait * 90
-    image = image.rotate(if_portrait, expand=1)
+    if_rotate = 90 * model.portrait
+    image = image.rotate(if_rotate, expand=1)
     w, h = image.size
     cx, cy = w // 2, h // 2
 
@@ -23,7 +24,8 @@ def new_rotated_bbox(model):
             4)
         corners = get_corners(bboxes)
         corners = np.hstack((corners, bboxes[:, 4:]))
-        image_rotated = image.rotate(face.rotation, expand=0)
+        image_rotated = image.rotate(
+            face.rotation, expand=0)
         corners[:, :8] = rotate_box(
             corners[:, :8], face.rotation, cx, cy, h, w)
         new_bbox = get_enclosing_box(corners)

@@ -30,10 +30,12 @@ class Bbox(JsonModel):
 
 class Face(JsonModel):
     bbox: Bbox
-    probability: int
+    probability: float
     label: Optional[int] = None
     rotation: Optional[int] = None
     descriptors: Optional[Dict] = None
+    face_vector: Optional[List[float]] = None
+    center: Optional[List[int]] = None
 
 
 class Model(JsonModel):
@@ -62,8 +64,14 @@ The model is based on NVIDIA DetectNet_v2 detector with ResNet18 as a feature ex
 
 The raw normalized bounding-box and confidence detections needs to be post-processed by a clustering algorithm such as DBSCAN or NMS to produce final bounding-box coordinates and category labels. The results are then saved to your local RedisDB. `docker/triton-server/facenet_model/README.md` for more information.
 
+int8
 ```sh
 ngc registry model download-version "nvidia/tao/facenet:pruned_quantized_v2.0.1" --dest docker/triton-server/facenet_model
+```
+
+fp32
+```sh
+ngc registry model download-version "nvidia/tao/facenet:deployable_v1.0" --dest docker/triton-server/facenet_model
 ```
 
 ---
