@@ -44,7 +44,7 @@ class FacenetPipeline:
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=64, num_threads=8)
+    @pipeline_def(batch_size=32, num_threads=8)
     def facenet_reshape(self):
         self.load_images()
         self.color_space_conversion()

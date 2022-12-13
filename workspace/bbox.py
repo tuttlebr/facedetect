@@ -14,14 +14,16 @@ def new_rotated_bbox(original_model):
     cx, cy = w // 2, h // 2
 
     for i, face in enumerate(model.faces):
-        bboxes = np.array(
-            (face.bbox.x1,
-             face.bbox.y1,
-             face.bbox.x2,
-             face.bbox.y2),
-            dtype="float32").reshape(
-            1,
-            4)
+        # Coerce square bboxes...
+        bbox_h = face.bbox.y2 - face.bbox.y1
+        bbox_w = face.bbox.x2 - face.bbox.x1
+        bbox_cx, bbox_cy = np.average(
+            (face.bbox.x1, face.bbox.x2)), np.average(
+            (face.bbox.y1, face.bbox.y2))
+        scale = np.max((bbox_h, bbox_w)) // 2
+        x1, y1, x2, y2 = (bbox_cx - scale), (bbox_cy -
+                                             scale), (bbox_cx + scale), (bbox_cy + scale)
+        bboxes = np.array((x1, y1, x2, y2), dtype="float32").reshape(1, 4)
         corners = get_corners(bboxes)
         corners = np.hstack((corners, bboxes[:, 4:]))
         image_rotated = image.rotate(

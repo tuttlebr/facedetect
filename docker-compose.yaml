@@ -16,7 +16,7 @@ services:
     shm_size: 8g
     ulimits:
       memlock: -1
-      stack: 67108864
+      stack: 1073741824
     runtime: nvidia
     env_file:
       - .env

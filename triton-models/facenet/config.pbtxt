@@ -1,10 +1,10 @@
 name: "facenet"
 platform: "tensorrt_plan"
 default_model_filename: "model.trt"
-max_batch_size: 64
+max_batch_size: 32
 dynamic_batching {
-  preferred_batch_size: [ 1, 32, 64 ]
-  max_queue_delay_microseconds: 50000
+  preferred_batch_size: [ 1, 16, 32 ]
+  max_queue_delay_microseconds: 500
 }
 
 instance_group [

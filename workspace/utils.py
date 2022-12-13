@@ -106,20 +106,20 @@ def get_fpenet_rotation(points):
         It can also handle visible or occluded flag for each keypoint."""
 
     try:
-        left = points[36:41]
-        right = points[42:47]
-        left_xs = sum([i[0] for i in left]) // len(left)
-        left_ys = sum([i[1] for i in left]) // len(left)
-        right_xs = sum([i[0] for i in right]) // len(right)
-        right_ys = sum([i[1] for i in right]) // len(right)
+        left = points[68]
+        right = points[75]
+        left_xs = left[0]
+        left_ys = left[1]
+        right_xs = right[0]
+        right_ys = right[1]
         tan = (right_ys - left_ys) / (right_xs - left_xs)
 
-        rotation = np.degrees(np.arctan(tan))
+        rotation = int(np.degrees(np.arctan(tan)))
 
     except BaseException:
         rotation = 0
 
-    return round(rotation, 0)
+    return rotation
 
 
 def load_model(model):
@@ -136,14 +136,15 @@ def crop_and_rotate_clip(model, rotate=0, resize=0):
     faces = []
     for face in model.faces:
         if rotate:
-            rotated_image = image.rotate(face.rotation, expand=1)
+            rotated_image = image.rotate(
+                face.rotation, expand=1)
         else:
             rotated_image = image
         cropped_image = rotated_image.crop(
             (face.bbox.x1,
              face.bbox.y1,
              face.bbox.x2,
-             face.bbox.y2)).rotate((-1*if_rotate), expand=1)
+             face.bbox.y2)).rotate((-1 * if_rotate), expand=1)
 
         if resize:
             cropped_image = cropped_image.resize(
@@ -233,7 +234,7 @@ def to_serializable_int(val):
     return int(val)
 
 
-def parse_descriptors(image_points):
+def parse_descriptors(image_points, scale=(1, 1)):
     i = 0
     chin = {}
     eyebrows = {}
@@ -246,24 +247,33 @@ def parse_descriptors(image_points):
 
     for coordinate in image_points:
         if i < 17:
-            chin[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            chin[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         elif i < 27:
-            eyebrows[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            eyebrows[i] = {"x": int(coordinate[0] * scale[0]),
+                           "y": int(coordinate[1] * scale[1])}
         elif i < 36:
-            nose[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            nose[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         elif i < 48:
-            eyes[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            eyes[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         elif i < 61:
-            mouth[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            mouth[i] = {"x": int(coordinate[0] * scale[0]),
+                        "y": int(coordinate[1] * scale[1])}
         elif i < 68:
-            lips[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            lips[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         elif i < 76:
-            pupil[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            pupil[i] = {"x": int(coordinate[0] * scale[0]),
+                        "y": int(coordinate[1] * scale[1])}
         elif i < 80:
-            ears[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            ears[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         elif i < 104:
             # Additional eye descriptors.
-            eyes[i] = {"x": int(coordinate[0]), "y": int(coordinate[1])}
+            eyes[i] = {"x": int(coordinate[0] * scale[0]),
+                       "y": int(coordinate[1] * scale[1])}
         i += 1
 
     descriptor_points = {"chin": chin,
@@ -374,8 +384,8 @@ class TritonClient:
             model_version: str,
             url,
             verbose=False,
-            concurrency=1,
-            max_batch_size=32,
+            concurrency=2,
+            max_batch_size=None,
     ):
         self.model_name = model_name
         self.model_version = model_version
@@ -396,7 +406,11 @@ class TritonClient:
             else self._get_fpenet_input
         )
         self.concurrency = concurrency
-        self.max_batch_size = self.model_config.max_batch_size
+
+        # even if the model doesn't support batching, this is a key for a
+        # generator.
+        self.max_batch_size = max_batch_size if max_batch_size else self.model_config.max_batch_size
+        self.max_batch_size = self.max_batch_size * self.concurrency
 
     @staticmethod
     def _get_facedetect_input(
@@ -499,6 +513,6 @@ class TritonClient:
                 request_id=request_id,
             )
         while len(async_requests) != len(inputs):
-            time.sleep(0.2)
+            time.sleep(0.05)
 
         return async_requests

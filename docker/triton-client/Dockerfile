@@ -1,5 +1,5 @@
 ARG TRITON_VERSION=22.11
-ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3-sdk
+ARG BASE_IMAGE=nvcr.io/nvidia/pytorch:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE} as builder
 
 # Don't prompt on build.

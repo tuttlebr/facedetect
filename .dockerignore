@@ -10,3 +10,4 @@ ignore*.ipynb
 ignore.py
 *.dat
 *.bz2
+*.hdf5

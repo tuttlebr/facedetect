@@ -108,7 +108,6 @@ class TritonPythonModel:
         # and create a pb_utils.InferenceResponse for each of them.
         for idx, request in enumerate(requests):
             # Get inputs
-
             batchwise_boxes, batchwise_proba = self.postprocessor.apply(
                 request, idx)
 
