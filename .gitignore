@@ -11,3 +11,4 @@ ignore.py
 *.dat
 *.bz2
 *.hdf5
+*.rdb
