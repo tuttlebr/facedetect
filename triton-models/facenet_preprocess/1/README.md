@@ -1,0 +1,1 @@
+model.dali is created by script.

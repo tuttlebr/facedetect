@@ -13,7 +13,7 @@ services:
         - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-server
     image: triton-server-image
-    shm_size: 8g
+    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 1073741824
@@ -65,6 +65,9 @@ services:
       - type: bind
         source: triton-models
         target: /models
+      - type: bind
+        source: ${HOST_IMAGE_FOLDER}
+        target: ${CONTAINER_IMAGE_FOLDER}
 
   triton-client:
     build:
@@ -73,7 +76,7 @@ services:
         - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-client
     image: triton-client
-    shm_size: 8g
+    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 67108864

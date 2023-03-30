@@ -6,8 +6,11 @@ import postprocessing.postprocessor_config_pb2 as postprocessor_config_pb2
 import triton_python_backend_utils as pb_utils
 from google.protobuf.text_format import Merge as merge_text_proto
 from postprocessing.postprocessor import Postprocessor
-from postprocessing.utils import (denormalize_bounding_bboxes, iou_vectorized,
-                                  thresholded_indices)
+from postprocessing.utils import (
+    denormalize_bounding_bboxes,
+    iou_vectorized,
+    thresholded_indices,
+)
 from sklearn.cluster import DBSCAN as dbscan
 
 logger = logging.getLogger(__name__)
@@ -30,12 +33,7 @@ def load_clustering_config(config):
 class DetectNetPostprocessor(Postprocessor):
     """Post processor for Triton outputs from a DetectNet_v2 client."""
 
-    def __init__(
-            self,
-            data_format,
-            classes,
-            postprocessing_config,
-            target_shape):
+    def __init__(self, data_format, classes, postprocessing_config, target_shape):
         """Initialize a post processor class for a classification model.
 
         Args:
@@ -101,27 +99,17 @@ class DetectNetPostprocessor(Postprocessor):
         3. Filter out the bboxes from the "output_bbox/BiasAdd" blob.
         4. Cluster the filterred boxes using DBSCAN.
         5. Render the outputs on images and save them to the output_path/images
-        # 6. Serialize the output bboxes to KITTI Format label files in output_path/labels.
         """
         output_array = {}
         this_id = int(this_id)
         for output_name in self.output_names:
-            request_tensor = pb_utils.get_input_tensor_by_name(
-                results, output_name)
-            output_array[output_name] = request_tensor.as_numpy(
-            ).transpose(0, 1, 3, 2)
+            request_tensor = pb_utils.get_input_tensor_by_name(results, output_name)
+            output_array[output_name] = request_tensor.as_numpy().transpose(0, 1, 3, 2)
 
-        request_tensor = pb_utils.get_input_tensor_by_name(
-            results, "true_image_size")
-        output_array["true_image_size"] = request_tensor.as_numpy()
-        output_array["true_image_size"] = np.array(([[output_array["true_image_size"][:, 0:2].min(
-        ), output_array["true_image_size"][:, 0:2].max(), output_array["true_image_size"][:, 2].min()]]))
+        output_array["true_image_size"] = pb_utils.get_input_tensor_by_name(
+            results, "true_image_size"
+        ).as_numpy()
 
-        assert (
-            len(self.classes) == output_array["output_cov/Sigmoid"].shape[1]
-        ), "Number of classes {} != number of dimensions in the output_cov/Sigmoid: {}".format(
-            len(self.classes), output_array["output_cov/Sigmoid"].shape[1]
-        )
         abs_bbox = denormalize_bounding_bboxes(
             output_array["output_bbox/BiasAdd"],
             self.stride,
@@ -135,12 +123,14 @@ class DetectNetPostprocessor(Postprocessor):
             output_array["true_image_size"],
             this_id - 1,
         )
+
         valid_indices = thresholded_indices(
             output_array["output_cov/Sigmoid"],
             len(self.classes),
             self.classes,
             self.coverage_thresholds,
         )
+
         batchwise_boxes = []
         batchwise_proba = []
         for image_idx, indices in enumerate(valid_indices):
@@ -156,14 +146,14 @@ class DetectNetPostprocessor(Postprocessor):
                 classwise_covs = classwise_covs[indices[class_idx]]
                 if classwise_covs.size == 0:
                     continue
-                classwise_bboxes = bboxes[4 *
-                                          class_idx: 4 * class_idx + 4, :, :]
+                classwise_bboxes = bboxes[4 * class_idx : 4 * class_idx + 4, :, :]
                 classwise_bboxes = classwise_bboxes.reshape(
                     classwise_bboxes.shape[:1] + (-1,)
                 ).T[indices[class_idx]]
                 pairwise_dist = 1.0 * (1.0 - iou_vectorized(classwise_bboxes))
                 labeling = self.dbscan_elements[self.classes[class_idx]].fit_predict(
-                    X=pairwise_dist, sample_weight=classwise_covs)
+                    X=pairwise_dist, sample_weight=classwise_covs
+                )
                 labels = np.unique(labeling[labeling >= 0])
                 for label in labels:
                     w = classwise_covs[labeling == label]
@@ -178,12 +168,12 @@ class DetectNetPostprocessor(Postprocessor):
                     # Compute coefficient of variation of the box coords
                     mean_box_w = mean_bbox[2] - mean_bbox[0]
                     mean_box_h = mean_bbox[3] - mean_bbox[1]
+                    bbox_area = mean_box_w * mean_box_h
                     valid_box = (
                         aggregated_w
                         > cw_config.dbscan_config.dbscan_confidence_threshold
                         and mean_box_h > cw_config.minimum_bounding_box_height
                     )
-
                     if valid_box:
                         batchwise_proba.append(aggregated_w)
                         clustered_boxes.append(mean_bbox)

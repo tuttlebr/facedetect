@@ -1,32 +1,16 @@
-ARG TRITON_VERSION=22.11
+ARG TRITON_VERSION=23.02
 ARG BASE_IMAGE=nvcr.io/nvidia/tritonserver:${TRITON_VERSION}-py3
 FROM ${BASE_IMAGE} as builder
 
-# Apt update to download packages required to download tao-toolkit.
-RUN apt-get update \
-    && apt-get install -y \
-    cmake \
-    gcc \
-    g++ \
-    libssl-dev \
-    make \
-    unzip
+# Don't prompt on build.
+ENV DEBIAN_FRONTEND=noninteractive
 
-# add node.js repo and install node.js.
-RUN curl -sL https://deb.nodesource.com/setup_16.x | bash - \
-    && apt-get install -y nodejs
-
-# Install NVIDIA DALI Backend
+# Python dependencies.
 COPY requirements.txt .
-RUN pip install --extra-index-url https://developer.download.nvidia.com/compute/redist --upgrade nvidia-dali-cuda110 \
-    && pip install -r requirements.txt
-
-# Install protoc as it should bind to whatever version of protobuf is used.
-ARG PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v21.6/protoc-21.6-linux-x86_64.zip
-RUN wget ${PROTOBUF_URL} -O proto.zip \
-    && unzip proto.zip \
-    && chmod +x bin/protoc \
-    && mv bin/protoc /usr/local/bin
+RUN pip install -r requirements.txt \
+    && pip install --extra-index-url \
+    https://developer.download.nvidia.com/compute/redist \
+    --upgrade nvidia-dali-cuda120
 
 # Replace libnvinfer_plugin.so since some TRT plugins are not supported in TRT8. 
 RUN wget https://nvidia.box.com/shared/static/7u2ocnwenwgrsx1yq8vv4hkfr0dg1rtm -O \
@@ -36,12 +20,22 @@ RUN wget https://nvidia.box.com/shared/static/7u2ocnwenwgrsx1yq8vv4hkfr0dg1rtm -
 ENV TRT_LIB_PATH=/usr/lib/x86_64-linux-gnu
 ENV TRT_INC_PATH=/usr/include/x86_64-linux-gnu
 
-# Download and install TAO Toolkit converter
-RUN wget https://developer.nvidia.com/tao-converter-80 -P /opt/tao-converter && \
-    apt-get update && apt-get install unzip libssl-dev -y && \
-    unzip /opt/tao-converter/tao-converter-80 -d /opt/tao-converter && \
-    chmod +x /opt/tao-converter/tao-converter-x86-tensorrt8.0/tao-converter
+# Install protoc as it should bind to whatever version of protobuf is used.
+ARG PROTOBUF_URL=https://github.com/protocolbuffers/protobuf/releases/download/v21.6/protoc-21.6-linux-x86_64.zip
+RUN wget ${PROTOBUF_URL} -O proto.zip \
+    && unzip proto.zip \
+    && chmod +x bin/protoc \
+    && mv bin/protoc /usr/local/bin
 
-ENV PATH=/opt/tao-converter/tao-converter-x86-tensorrt8.0:$PATH
+# Download and install TAO Toolkit converter: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/tao/resources/tao-converter
+RUN wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/tao/tao-converter/versions/v4.0.0_trt8.5.1.7_x86/zip \
+    -O tao-converter_v4.0.0_trt8.5.1.7_x86.zip \
+    && unzip tao-converter_v4.0.0_trt8.5.1.7_x86.zip \
+    && mv tao-converter /opt \
+    && chmod +x /opt/tao-converter
+
+ENV TRT_LIB_PATH=/usr/lib/x86_64-linux-gnu
+ENV TRT_INC_PATH=/usr/include/x86_64-linux-gnu
+ENV PATH=/opt/tao-converter:$PATH
 
 WORKDIR /opt/tritonserver

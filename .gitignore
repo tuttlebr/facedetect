@@ -12,3 +12,6 @@ ignore.py
 *.bz2
 *.hdf5
 *.rdb
+*.whl
+*.log
+coco/instances.json

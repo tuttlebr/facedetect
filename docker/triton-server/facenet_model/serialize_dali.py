@@ -1,6 +1,6 @@
-from nvidia.dali import pipeline_def
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
+from nvidia.dali import pipeline_def
 
 SAVE_AS = "/models/facenet_preprocess/1/model.dali"
 
@@ -12,8 +12,7 @@ class FacenetPipeline:
     Input scale: 1/255.0 Mean subtraction: None"""
 
     def __init__(self):
-        self.raw_image_tensor = fn.external_source(
-            name="input_image_data")
+        self.raw_image_tensor = fn.external_source(name="input_image_data")
         self.shapes = fn.peek_image_shape(self.raw_image_tensor)
         self.one_over_255 = 1 / 255.0
 
@@ -27,12 +26,6 @@ class FacenetPipeline:
             self.image_tensor, image_type=types.GRAY, output_type=types.RGB
         )
 
-    def maybe_rotate(self):
-        # if_rotate = height > width
-        if_rotate = self.shapes[0] > self.shapes[1]
-        angle = 90.0 * if_rotate
-        self.image_tensor = fn.rotate(self.image_tensor, angle=angle)
-
     def resize_images(self):
         self.image_tensor = fn.resize(
             self.image_tensor,
@@ -44,11 +37,10 @@ class FacenetPipeline:
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=32, num_threads=8)
+    @pipeline_def(batch_size=1, num_threads=64)
     def facenet_reshape(self):
         self.load_images()
         self.color_space_conversion()
-        self.maybe_rotate()
         self.resize_images()
         self.transpose_images()
 

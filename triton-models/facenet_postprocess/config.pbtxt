@@ -1,15 +1,11 @@
 name: "facenet_postprocess"
 backend: "python"
 default_model_filename: "model.py"
-max_batch_size: 32
-dynamic_batching {
-  preferred_batch_size: [ 1, 16, 32 ]
-  max_queue_delay_microseconds: 500
-}
+max_batch_size: 1
 
 instance_group [
   {
-    count: 2
+    count: 4
     kind: KIND_CPU
   }
 ]

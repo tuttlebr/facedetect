@@ -1,11 +1,7 @@
 name: "facenet_preprocess"
 backend: "dali"
 default_model_filename: "model.dali"
-max_batch_size: 32
-dynamic_batching {
-  preferred_batch_size: [ 1, 16, 32 ]
-  max_queue_delay_microseconds: 500
-}
+max_batch_size: 1
 
 instance_group [
   {

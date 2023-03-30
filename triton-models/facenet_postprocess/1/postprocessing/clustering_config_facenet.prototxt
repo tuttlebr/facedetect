@@ -3,12 +3,17 @@ stride: 16
 classwise_clustering_config{
     key: "face"
     value: {
-        coverage_threshold: 0.00
-        minimum_bounding_box_height: 4
+        # The minimum threshold of the coverage tensor output to be considered a valid candidate box for clustering. The four coordinates from the bbox tensor at the corresponding indices are passed for clustering
+        coverage_threshold: 0.005
+        # The minimum height in pixels to consider as a valid detection post clustering.
+        minimum_bounding_box_height: 2
         dbscan_config{
+            # The maximum distance between two samples for one to be considered in the neighborhood of the other. This is not a maximum bound on the distances of points within a cluster. The greater the dbscan_eps value, the more boxes are grouped together.
             dbscan_eps: 0.8
+            # The total weight in a neighborhood for a point to be considered as a core point. This includes the point itself.
             dbscan_min_samples: 4
-            dbscan_confidence_threshold: 0.9
+            # The confidence threshold used to filter out the clustered bounding box output from DBSCAN.
+            dbscan_confidence_threshold: 0.3
         }
         bbox_color{
             R: 118

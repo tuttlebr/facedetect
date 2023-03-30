@@ -14,8 +14,7 @@ class BaseAnnotation(object):
 
     def __str__(self):
         """String representation of the annotation object."""
-        raise NotImplementedError(
-            "This method is not implemented in the base class.")
+        raise NotImplementedError("This method is not implemented in the base class.")
 
 
 class KittiBbox(BaseAnnotation):
@@ -60,7 +59,8 @@ class KittiBbox(BaseAnnotation):
         """String representation of the label file."""
         assert self.initialized, "Annotation should be initialized."
         world_bbox_str = "{3:.2f} {4:.2f} {5:.2f} {0:.2f} {1:.2f} {2:.2f}".format(
-            *self.world_bbox)
+            *self.world_bbox
+        )
         bbox_str = "{:0.3f} {:0.3f} {:0.3f} {:0.3f}".format(*self.box)
         if self.confidence is not None:
             return "{0} {1:.2f} {2} {3:0.2f} {4} {5} {6:.2f} {7:0.2f}".format(

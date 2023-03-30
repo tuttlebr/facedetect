@@ -108,19 +108,17 @@ class TritonPythonModel:
         # and create a pb_utils.InferenceResponse for each of them.
         for idx, request in enumerate(requests):
             # Get inputs
-            batchwise_boxes, batchwise_proba = self.postprocessor.apply(
-                request, idx)
+            batchwise_boxes, batchwise_proba = self.postprocessor.apply(request, idx)
 
             out_tensor_0 = pb_utils.Tensor(
-                "true_boxes", np.asarray(batchwise_boxes).astype(output0_dtype)
+                "true_boxes", np.asarray(batchwise_boxes, dtype=object)
             )
 
             out_tensor_1 = pb_utils.Tensor(
-                "true_proba", np.asarray(batchwise_proba).astype(output1_dtype)
+                "true_proba", np.asarray(batchwise_proba, dtype=object)
             )
 
-            out_tensor_2 = pb_utils.get_input_tensor_by_name(
-                request, "true_image_size")
+            out_tensor_2 = pb_utils.get_input_tensor_by_name(request, "true_image_size")
 
             inference_response = pb_utils.InferenceResponse(
                 output_tensors=[out_tensor_0, out_tensor_1, out_tensor_2]

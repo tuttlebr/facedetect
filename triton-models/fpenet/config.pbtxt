@@ -1,15 +1,11 @@
 name: "fpenet"
 platform: "tensorrt_plan"
 default_model_filename: "model.trt"
-max_batch_size: 32
-dynamic_batching {
-  preferred_batch_size: [ 1, 16, 32 ]
-  max_queue_delay_microseconds: 500
-}
+max_batch_size: 1
 
 instance_group [
   {
-    count: 1
+    count: 2
     kind: KIND_GPU
   }
 ]

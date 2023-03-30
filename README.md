@@ -66,11 +66,15 @@ The raw normalized bounding-box and confidence detections needs to be post-proce
 
 int8
 
+`10/26/2021 12:02 PM    Accuracy: 83.87 70 Epochs   Batch Size: 1   GPU: V100   5.51 MB`
+
 ```sh
 ngc registry model download-version "nvidia/tao/facenet:pruned_quantized_v2.0.1" --dest docker/triton-server/facenet_model
 ```
 
 fp32
+
+`08/18/2021 10:21 PM    Accuracy: 85.3  70 Epochs   Batch Size: 1   GPU: V100   44.15 MB`
 
 ```sh
 ngc registry model download-version "nvidia/tao/facenet:deployable_v1.0" --dest docker/triton-server/facenet_model
@@ -93,6 +97,8 @@ This model predicts 68, 80 or 104 keypoints for a given face- Chin: 1-17, Eyebro
 This is a classification model with a [Recombinator network](https://openaccess.thecvf.com/content_cvpr_2016/papers/Honari_Recombinator_Networks_Learning_CVPR_2016_paper.pdf) backbone. Recombinator networks are a family of CNN architectures that are suited for fine grained pixel level predictions (as oppose to image level prediction like classification). The model recombines the layer inputs such that convolutional layers in the finer branches get inputs from both coarse and fine layers.
 
 The facial landmark estimations may be used for facial alignment and an example of that is provided in the notebook. `docker/triton-server/fpenet_model/README.md` for more information.
+
+`11/23/2021 7:47 PM Accuracy: 6.1   100 Epochs  Batch Size: 1   GPU: V100   2.24 MB`
 
 ```sh
 ngc registry model download-version "nvidia/tao/fpenet:deployable_v3.0" --dest docker/triton-server/fpenet_model

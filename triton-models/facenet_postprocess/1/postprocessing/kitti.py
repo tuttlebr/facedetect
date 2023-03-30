@@ -13,8 +13,7 @@ def write_kitti_annotation(label_file, objects):
                 os.path.dirname(label_file)
             )
         )
-    assert isinstance(
-        objects, list), "The annotation must be a list of objects." ""
+    assert isinstance(objects, list), "The annotation must be a list of objects." ""
     with open(label_file, "w") as lfile:
         for label in objects:
             if not isinstance(label, KittiBbox):
