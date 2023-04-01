@@ -1,6 +1,7 @@
+import numpy as np
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
-from nvidia.dali import pipeline_def
+from nvidia.dali import math, pipeline_def
 
 
 @pipeline_def
@@ -46,3 +47,16 @@ def coco_pipeline(coco_annotations_file):
     )
     images = fn.decoders.image(encoded, device="mixed", hw_decoder_load=0.5)
     return images, bboxes, labels, mask_polygons, mask_vertices
+
+
+def get_face_rotation(points):
+    center = points[27]
+    left_eye = points[36]
+    right_eye = points[45]
+    dY = right_eye[1] - left_eye[1]
+    dX = right_eye[0] - left_eye[0]
+    tan = dY / dX
+
+    # radians to degrees: 180/pi
+    rotation = -1 * (np.arctan(tan) * 57.29577951308232)
+    return rotation, center

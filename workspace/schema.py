@@ -23,7 +23,7 @@ class ImagesModel(JsonModel):
     date_captured: (Required) the date and time the image was captured.
     """
 
-    id: int
+    id: int = None
     license: Optional[int]
     coco_url: Optional[str]
     flickr_url: Optional[str]
@@ -72,6 +72,8 @@ class AnnotationsModel(JsonModel):
     area: Optional[float] = None
     image_id: Optional[int] = None
     bbox: Optional[List[float]] = None
+    rotation: Optional[float] = None
+    center: Optional[List[float]] = None
     category_id: Optional[int] = None
     id: Optional[int] = None
 

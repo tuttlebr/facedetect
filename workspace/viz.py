@@ -14,11 +14,11 @@ def plot_coco_sample(
     color = "#76b900"
     images, bboxes, labels, mask_polygons, mask_vertices = outputs
     batch_size = len(outputs[0])
-    fig = plt.figure(dpi=dpi)
+    columns = batch_size
+    rows = batch_size // 2
+    fig = plt.figure(figsize=(16, 14), dpi=dpi)
     plt.suptitle(None)
 
-    columns = batch_size // 2
-    rows = batch_size // 2
     gs = gridspec.GridSpec(rows, columns)
     flat = 0
 
@@ -29,9 +29,9 @@ def plot_coco_sample(
         polygon = np.array(polygon)
         vertice = np.array(vertice)
         H, W, C = image.shape()
+        radius = 0.0005 * max(H, W)
         ax = plt.subplot(gs[flat])
         plt.axis("off")
-        plt.title("{} Face(s)".format(len(bbox)))
         ax = plt.subplot(gs[flat])
         plt.imshow(image)
 
@@ -60,7 +60,7 @@ def plot_coco_sample(
                     xy[0] + l,
                     xy[1] + t,
                 )
-                circle = patches.Circle(xy, radius=8, color=color)
+                circle = patches.Circle(xy, radius=radius, color=color, fill=True)
                 ax.add_patch(circle)
             ax.add_patch(rect)
 
