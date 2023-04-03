@@ -1,40 +1,46 @@
 import numpy as np
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
+import psutil
 from nvidia.dali import math, pipeline_def
 
+CORE_COUNT = psutil.cpu_count(logical=False)
+GLOBAL_SEED = 42
 
-@pipeline_def
-def facedetect_pipeline(filenames, shard_id, num_shards):
+
+@pipeline_def(num_threads=CORE_COUNT, seed=GLOBAL_SEED)
+def facedetect_pipeline(filenames, shard_id=0, num_shards=1):
     encoded, _ = fn.readers.file(
         files=filenames,
         dont_use_mmap=True,
         read_ahead=True,
-        prefetch_queue_depth=8,
+        prefetch_queue_depth=CORE_COUNT,
         name="Encoder",
         num_shards=num_shards,
         shard_id=shard_id,
     )
+
+    images = fn.decoders.image(
+        encoded, output_type=types.GRAY, device="mixed", hw_decoder_load=0.95
+    )
     # HWC format is default
-    shapes = fn.peek_image_shape(encoded)
-    image = fn.decoders.image(
-        encoded, output_type=types.GRAY, device="mixed", hw_decoder_load=0.5
+    shapes = fn.shapes(images)
+    images = fn.color_space_conversion(
+        images, image_type=types.GRAY, output_type=types.RGB
     )
-    image = fn.color_space_conversion(
-        image, image_type=types.GRAY, output_type=types.RGB
-    )
-    image = fn.resize(
-        image,
+    images = fn.resize(
+        images,
         resize_x=736,
         resize_y=416,
         interp_type=types.INTERP_LANCZOS3,
         antialias=True,
     )
-    image = fn.transpose(image, perm=[2, 0, 1]) * (1 / 255.0)
-    return shapes, image, encoded
+    # image * (1/255.)
+    images = fn.transpose(images, perm=[2, 0, 1]) * 0.00392156862745098
+    return shapes, images, encoded
 
 
-@pipeline_def
+@pipeline_def(num_threads=CORE_COUNT, seed=GLOBAL_SEED)
 def coco_pipeline(coco_annotations_file):
     encoded, bboxes, labels, mask_polygons, mask_vertices = fn.readers.coco(
         annotations_file=coco_annotations_file,
@@ -43,9 +49,13 @@ def coco_pipeline(coco_annotations_file):
         skip_empty=True,  # Load only samples with bboxes or polygons
         polygon_masks=True,  # Load segmentation mask data as polygons
         ratio=False,  # Bounding box and mask polygons to be expressed in relative coordinates
-        ltrb=False,  # Bounding boxes to be expressed as left, top, right, bottom coordinates
+        ltrb=False,  # Bounding boxes to be expressed as left, top, right, bottom coordinates, or not
     )
-    images = fn.decoders.image(encoded, device="mixed", hw_decoder_load=0.5)
+
+    images = fn.decoders.image(encoded, device="mixed", hw_decoder_load=0.95)
+
+    # HWC format is default
+    shapes = fn.shapes(images)
     return images, bboxes, labels, mask_polygons, mask_vertices
 
 
