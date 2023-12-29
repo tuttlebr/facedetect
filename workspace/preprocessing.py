@@ -2,7 +2,7 @@ import numpy as np
 import nvidia.dali.fn as fn
 import nvidia.dali.types as types
 import psutil
-from nvidia.dali import math, pipeline_def
+from nvidia.dali import pipeline_def
 
 CORE_COUNT = psutil.cpu_count(logical=False)
 GLOBAL_SEED = 42
@@ -20,14 +20,15 @@ def facedetect_pipeline(filenames, shard_id=0, num_shards=1):
         shard_id=shard_id,
     )
 
-    images = fn.decoders.image(
-        encoded, output_type=types.GRAY, device="mixed", hw_decoder_load=0.95
-    )
+    images = fn.decoders.image(encoded,
+                               output_type=types.GRAY,
+                               device="mixed",
+                               hw_decoder_load=0.95)
     # HWC format is default
     shapes = fn.shapes(images)
-    images = fn.color_space_conversion(
-        images, image_type=types.GRAY, output_type=types.RGB
-    )
+    images = fn.color_space_conversion(images,
+                                       image_type=types.GRAY,
+                                       output_type=types.RGB)
     images = fn.resize(
         images,
         resize_x=736,
@@ -48,14 +49,16 @@ def coco_pipeline(coco_annotations_file):
         random_shuffle=True,  # Load in no particular order
         skip_empty=True,  # Load only samples with bboxes or polygons
         polygon_masks=True,  # Load segmentation mask data as polygons
-        ratio=False,  # Bounding box and mask polygons to be expressed in relative coordinates
-        ltrb=False,  # Bounding boxes to be expressed as left, top, right, bottom coordinates, or not
+        ratio=
+        False,  # Bounding box and mask polygons to be expressed in relative coordinates
+        ltrb=
+        False,  # Bounding boxes to be expressed as left, top, right, bottom coordinates, or not
     )
 
     images = fn.decoders.image(encoded, device="mixed", hw_decoder_load=0.95)
 
     # HWC format is default
-    shapes = fn.shapes(images)
+    fn.shapes(images)
     return images, bboxes, labels, mask_polygons, mask_vertices
 
 

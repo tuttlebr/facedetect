@@ -12,9 +12,9 @@ class FacenetPipeline:
     Input scale: 1/255.0 Mean subtraction: None"""
 
     def __init__(self):
-        self.raw_image_tensor = fn.external_source(name="input_image_data")
+        self.image_tensor = fn.external_source(name="input_image_data")
         self.shapes = fn.peek_image_shape(self.raw_image_tensor)
-        self.one_over_255 = 1 / 255.0
+        self.one_over_255 = 0.00392156862745098
 
     def load_images(self):
         self.image_tensor = fn.decoders.image(self.raw_image_tensor,
