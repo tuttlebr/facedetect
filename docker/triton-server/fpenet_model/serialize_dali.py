@@ -40,7 +40,7 @@ class FPENetPipeline:
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=1, num_threads=64)
+    @pipeline_def(batch_size=32, num_threads=64)
     def fpenet_transform(self):
         self.load_images()
         self.slice_bbox()

@@ -15,3 +15,4 @@ ignore.py
 *.whl
 *.log
 coco/instances.json
+workspace/symetrical_batches.json

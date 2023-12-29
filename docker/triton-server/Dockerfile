@@ -6,6 +6,7 @@ FROM ${BASE_IMAGE} as builder
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Python dependencies.
+# https://docs.nvidia.com/deeplearning/dali/user-guide/docs/installation.html#nvidia-dali
 COPY requirements.txt .
 RUN pip install -r requirements.txt \
     && pip install --extra-index-url \
@@ -20,9 +21,10 @@ RUN wget ${PROTOBUF_URL} -O proto.zip \
     && mv bin/protoc /usr/local/bin
 
 # Download and install TAO Toolkit converter: https://catalog.ngc.nvidia.com/orgs/nvidia/teams/tao/resources/tao-converter
-RUN wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/tao/tao-converter/versions/v4.0.0_trt8.5.1.7_x86/zip \
-    -O tao-converter_v4.0.0_trt8.5.1.7_x86.zip \
-    && unzip tao-converter_v4.0.0_trt8.5.1.7_x86.zip \
+ARG TAO_VERSION=v5.1.0_8.6.3.1_x86
+RUN wget --content-disposition https://api.ngc.nvidia.com/v2/resources/nvidia/tao/tao-converter/versions/${TAO_VERSION}/zip \
+    -O tao-converter_${TAO_VERSION}.zip \
+    && unzip tao-converter_${TAO_VERSION}.zip \
     && mv tao-converter /opt \
     && chmod +x /opt/tao-converter
 

@@ -168,7 +168,7 @@ docker compose build
 ### Run Model Conversion
 
 ```sh
-docker compose run triton-model-builder
+docker compose up triton-model-builder
 ```
 
 ### Start Services

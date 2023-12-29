@@ -17,14 +17,14 @@ class FacenetPipeline:
         self.one_over_255 = 1 / 255.0
 
     def load_images(self):
-        self.image_tensor = fn.decoders.image(
-            self.raw_image_tensor, output_type=types.GRAY, device="mixed"
-        )
+        self.image_tensor = fn.decoders.image(self.raw_image_tensor,
+                                              output_type=types.GRAY,
+                                              device="mixed")
 
     def color_space_conversion(self):
-        self.image_tensor = fn.color_space_conversion(
-            self.image_tensor, image_type=types.GRAY, output_type=types.RGB
-        )
+        self.image_tensor = fn.color_space_conversion(self.image_tensor,
+                                                      image_type=types.GRAY,
+                                                      output_type=types.RGB)
 
     def resize_images(self):
         self.image_tensor = fn.resize(
@@ -37,7 +37,7 @@ class FacenetPipeline:
     def transpose_images(self):
         self.image_tensor = fn.transpose(self.image_tensor, perm=[2, 0, 1])
 
-    @pipeline_def(batch_size=1, num_threads=64)
+    @pipeline_def(batch_size=32, num_threads=64)
     def facenet_reshape(self):
         self.load_images()
         self.color_space_conversion()

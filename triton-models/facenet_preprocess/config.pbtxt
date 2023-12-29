@@ -1,15 +1,19 @@
 name: "facenet_preprocess"
 backend: "dali"
 default_model_filename: "model.dali"
-max_batch_size: 1
+max_batch_size: 32
+dynamic_batching {
+  preferred_batch_size: [ 8, 16, 32 ]
+  max_queue_delay_microseconds: 100
+  }
 
 instance_group [
   {
-    count: 1
+    count: 2
     kind: KIND_GPU
   }
 ]
-  
+
 input [
     {
       name: "input_image_data"
@@ -17,7 +21,7 @@ input [
       dims: [ -1 ]
     }
 ]
- 
+
 output [
     {
       name: "input_1"
@@ -37,7 +41,7 @@ parameters {
         string_value: "Reshapes a full size image. Grayscale Image whose values in RGB channels are the same. 736 X 416 X 3 Channel Ordering of the Input: NCHW, where N = Batch Size, C = number of channels (3), H = Height of images (416), W = Width of the images (736) Input scale: 1/255.0 Mean subtraction: None"
     }
 }
-parameters {        
+parameters {
     key: "license"
     value: {
         string_value: "Apache 2.0 license: https://www.apache.org/licenses/LICENSE-2.0"

@@ -1,7 +1,11 @@
 name: "fpenet"
 platform: "tensorrt_plan"
 default_model_filename: "model.trt"
-max_batch_size: 1
+max_batch_size: 32
+dynamic_batching {
+  preferred_batch_size: [ 8, 16, 32 ]
+  max_queue_delay_microseconds: 100
+  }
 
 instance_group [
   {
@@ -50,7 +54,7 @@ parameters {
   }
 }
 
-parameters {        
+parameters {
   key: "license"
   value: {
       string_value: "License to use this model is covered by the Model EULA. By downloading the unpruned or pruned version of the model, you accept the terms and conditions of these licenses. https://developer.nvidia.com/deep-learning-models-license-agreement"

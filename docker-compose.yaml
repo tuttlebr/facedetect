@@ -11,9 +11,9 @@ services:
       args:
         - TRITON_VERSION=${MAJOR_UPDATE_VERSION}
         - PROTOBUF_URL=${PROTOBUF_URL}
+        - TAO_VERSION=${TAO_VERSION}
       context: docker/triton-server
     image: triton-server-image
-    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 1073741824
@@ -24,9 +24,15 @@ services:
     volumes:
       - type: bind
         source: docker/triton-server/facenet_model
-        target: /tmp/facenet_model
+        target: /tmp/dali/facenet_model
       - type: bind
         source: docker/triton-server/fpenet_model
+        target: /tmp/dali/fpenet_model
+      - type: bind
+        source: ${FACENET_MODEL_PATH}
+        target: /tmp/facenet_model
+      - type: bind
+        source: ${FPENET_MODEL_PATH}
         target: /tmp/fpenet_model
       - type: bind
         source: docker/triton-server/tlt-converter.sh
@@ -37,7 +43,6 @@ services:
 
   triton-server:
     image: triton-server-image
-    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 67108864
@@ -76,7 +81,6 @@ services:
         - PROTOBUF_URL=${PROTOBUF_URL}
       context: docker/triton-client
     image: triton-client
-    shm_size: 64g
     ulimits:
       memlock: -1
       stack: 67108864
